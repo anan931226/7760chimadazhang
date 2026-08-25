@@ -71,6 +71,12 @@ input,textarea,select{font-family:inherit;}
   letter-spacing:.12em;text-transform:uppercase;
 }
 .tabs{display:flex;gap:4px;margin-left:auto;}
+.topbar .author{
+  margin-left:12px;padding-left:12px;border-left:1px solid var(--line);
+  font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);
+  white-space:nowrap;letter-spacing:.02em;
+}
+.topbar .author .handle{color:var(--ink-dim);}
 .tab-btn{
   appearance:none;border:1px solid transparent;background:transparent;
   color:var(--ink-dim);font-family:var(--font-display);font-weight:600;
@@ -266,6 +272,7 @@ s{color:var(--ink-faint);}
   .sidebar{width:100%;max-height:40vh;border-right:none;border-bottom:1px solid var(--line);}
   .topbar{gap:10px;padding:0 12px;}
   .topbar .brand .sub{display:none;}
+  .topbar .author{display:none;}
   .tab-btn{padding:8px 10px;font-size:13px;}
 }
 
@@ -477,6 +484,7 @@ s{color:var(--ink-faint);}
           '<button class="tab-btn" data-tab="quiz">測驗</button>' +
           '<button class="tab-btn" data-tab="add">新增內容</button>' +
         '</div>' +
+        '<div class="author">陳奕安 <span class="handle">@anan931226</span></div>' +
       '</div>' +
       '<div class="view" id="view-read">' +
         '<div class="sidebar">' +
