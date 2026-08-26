@@ -294,6 +294,7 @@ s{color:var(--ink-faint);}
 }
 .mine-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
 .mine-card-head h3{font-family:var(--font-display);font-size:15px;margin:0;color:var(--ink);}
+.baseline-note{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);margin:-4px 0 14px;}
 .mine-q-row{
   display:flex;flex-direction:column;gap:2px;padding:9px 0;border-bottom:1px solid var(--line-soft);font-size:13.5px;
 }
@@ -357,7 +358,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
   var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92ZXV1a21sZm1kZGFuend1d2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2NDA4ODIsImV4cCI6MjEwMzIxNjg4Mn0.eazZ272x7UsLcD1YvfMI19SB9i5B6XDQfV93H5c2vsQ";
 
   /* ================= data & state ================= */
-  var STATE = { chapters: [], questions: [], attempts: [], favorites: [] };
+  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [] };
   var ADMIN_PASSPHRASE = "cmh7760";
   var EMPLOYEE_ID_KEY = "mazhuan_employee_id";
   var ADMIN_SESSION_KEY = "mazhuan_admin_ok";
@@ -438,14 +439,30 @@ table.admin-table tr:last-child td{border-bottom:none;}
     });
   }
 
+  function sbUpsert(table, row, conflictCol){
+    return fetch(SUPABASE_URL + "/rest/v1/" + table + "?on_conflict=" + conflictCol, {
+      method: "POST",
+      headers: sbHeaders({ "Prefer": "resolution=merge-duplicates,return=representation" }),
+      body: JSON.stringify([row])
+    }).then(function(r){
+      if(!r.ok){
+        return r.json().catch(function(){ return {}; }).then(function(err){
+          throw new Error(err.message || ("儲存失敗 (HTTP " + r.status + ")"));
+        });
+      }
+      return r.json();
+    }).then(function(rows){ return rows[0]; });
+  }
+
   function loadAll(){
     return Promise.all([
-      sbSelect("chapters"), sbSelect("questions"), sbSelect("quiz_attempts"), sbSelect("favorites")
+      sbSelect("chapters"), sbSelect("questions"), sbSelect("quiz_attempts"), sbSelect("favorites"), sbSelect("stat_baselines")
     ]).then(function(results){
       STATE.chapters = results[0];
       STATE.questions = results[1];
       STATE.attempts = results[2];
       STATE.favorites = results[3];
+      STATE.baselines = results[4];
     });
   }
 
@@ -624,12 +641,29 @@ table.admin-table tr:last-child td{border-bottom:none;}
     };
     sbInsert("quiz_attempts", row).then(function(saved){ STATE.attempts.push(saved); });
   }
-  function latestAttemptsByQuestion(employeeId){
-    var mine = STATE.attempts.filter(function(a){ return a.employee_id === employeeId; });
+  function latestAttemptsByQuestion(employeeId, sinceIso){
+    var mine = STATE.attempts.filter(function(a){
+      return a.employee_id === employeeId && (!sinceIso || a.answered_at >= sinceIso);
+    });
     mine.sort(function(a,b){ return new Date(a.answered_at) - new Date(b.answered_at); });
     var map = {};
     mine.forEach(function(a){ map[a.question_id] = a; });
     return map;
+  }
+  function getBaseline(employeeId){
+    var row = STATE.baselines.filter(function(b){ return b.employee_id === employeeId; })[0];
+    return row ? row.reset_at : null;
+  }
+  function resetBaseline(employeeId, onDone){
+    if(!window.confirm("確定要重新開始這一輪「落點」統計嗎？\n\n之前的作答紀錄不會被刪除，收藏和錯題清單也不受影響，只有各章節正確率會從現在這一刻重新累計。")){
+      return;
+    }
+    var row = { employee_id: employeeId, reset_at: new Date().toISOString() };
+    sbUpsert("stat_baselines", row, "employee_id").then(function(saved){
+      STATE.baselines = STATE.baselines.filter(function(b){ return b.employee_id !== employeeId; });
+      STATE.baselines.push(saved);
+      if(onDone) onDone();
+    }).catch(function(err){ window.alert(err.message); });
   }
 
   function renderShell(){
@@ -853,12 +887,14 @@ table.admin-table tr:last-child td{border-bottom:none;}
       return;
     }
 
-    var latest = latestAttemptsByQuestion(id);
+    var latestAll = latestAttemptsByQuestion(id);
+    var baseline = getBaseline(id);
+    var latest = latestAttemptsByQuestion(id, baseline);
     var qById = {};
     allQuestions().forEach(function(q){ qById[q.id] = q; });
 
-    var wrongQuestions = Object.keys(latest)
-      .filter(function(qid){ return latest[qid].is_correct === false; })
+    var wrongQuestions = Object.keys(latestAll)
+      .filter(function(qid){ return latestAll[qid].is_correct === false; })
       .map(function(qid){ return qById[qid]; })
       .filter(Boolean);
 
@@ -898,12 +934,14 @@ table.admin-table tr:last-child td{border-bottom:none;}
         (totalAnswered ? '（' + Math.round(totalCorrect/totalAnswered*100) + '%）' : '') + '</div>' +
       '<div class="mine-grid">' +
         '<div class="mine-card">' +
-          '<div class="mine-card-head"><h3>落點（依章節正確率，由低到高）</h3></div>' +
+          '<div class="mine-card-head"><h3>落點（依章節正確率，由低到高）</h3>' +
+            '<button class="btn btn-ghost" id="reset-baseline">重新開始這一輪</button></div>' +
+          '<div class="baseline-note">' + (baseline ? '統計區間：' + esc(new Date(baseline).toLocaleString('zh-TW')) + ' 之後' : '統計區間：從第一次作答至今') + '</div>' +
           (chapterStats.length ? chapterStats.map(function(s){
             return '<div class="chapter-stat-row"><span class="t">' + esc(s.title) + '</span>' +
               '<div class="bar"><div class="bar-fill" style="width:' + s.pct + '%"></div></div>' +
               '<span class="mono pct">' + s.pct + '%</span></div>';
-          }).join('') : '<div class="empty-state" style="padding:14px 0;">還沒有作答紀錄</div>') +
+          }).join('') : '<div class="empty-state" style="padding:14px 0;">' + (baseline ? '這一輪還沒有作答紀錄' : '還沒有作答紀錄') + '</div>') +
         '</div>' +
         '<div class="mine-card">' +
           '<div class="mine-card-head"><h3>錯題（' + wrongQuestions.length + '）</h3>' +
@@ -921,6 +959,9 @@ table.admin-table tr:last-child td{border-bottom:none;}
     if(retryWrongBtn) retryWrongBtn.addEventListener('click', function(){ startQuizWithPool(wrongQuestions); });
     var retryFavBtn = document.getElementById('retry-fav');
     if(retryFavBtn) retryFavBtn.addEventListener('click', function(){ startQuizWithPool(favQuestions); });
+    document.getElementById('reset-baseline').addEventListener('click', function(){
+      resetBaseline(id, renderMine);
+    });
   }
 
   /* ---------- admin tab ---------- */
