@@ -187,6 +187,12 @@ s{color:var(--ink-faint);}
 #view-quiz{width:100%;justify-content:center;overflow-y:auto;}
 .quiz-wrap{max-width:640px;width:100%;padding:40px 24px 100px;margin:0 auto;}
 .quiz-setup{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-card);padding:24px;}
+.resume-card{
+  background:var(--panel-2);border:1px solid var(--spo2);border-radius:var(--radius-ctl);
+  padding:14px 16px;margin-bottom:20px;font-size:14px;color:var(--ink-dim);
+}
+.resume-card b{color:var(--ink);font-family:var(--font-mono);}
+.resume-actions{display:flex;gap:10px;margin-top:12px;}
 .quiz-setup h2, .quiz-live h2{font-family:var(--font-display);font-size:20px;margin:0 0 14px;}
 .quiz-setup label{display:block;font-family:var(--font-mono);font-size:11px;color:var(--ink-dim);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
 .quiz-setup select{
@@ -358,7 +364,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
   var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92ZXV1a21sZm1kZGFuend1d2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2NDA4ODIsImV4cCI6MjEwMzIxNjg4Mn0.eazZ272x7UsLcD1YvfMI19SB9i5B6XDQfV93H5c2vsQ";
 
   /* ================= data & state ================= */
-  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [] };
+  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [] };
   var ADMIN_PASSPHRASE = "cmh7760";
   var EMPLOYEE_ID_KEY = "mazhuan_employee_id";
   var ADMIN_SESSION_KEY = "mazhuan_admin_ok";
@@ -456,13 +462,15 @@ table.admin-table tr:last-child td{border-bottom:none;}
 
   function loadAll(){
     return Promise.all([
-      sbSelect("chapters"), sbSelect("questions"), sbSelect("quiz_attempts"), sbSelect("favorites"), sbSelect("stat_baselines")
+      sbSelect("chapters"), sbSelect("questions"), sbSelect("quiz_attempts"), sbSelect("favorites"),
+      sbSelect("stat_baselines"), sbSelect("quiz_sessions")
     ]).then(function(results){
       STATE.chapters = results[0];
       STATE.questions = results[1];
       STATE.attempts = results[2];
       STATE.favorites = results[3];
       STATE.baselines = results[4];
+      STATE.sessions = results[5];
     });
   }
 
@@ -654,6 +662,35 @@ table.admin-table tr:last-child td{border-bottom:none;}
     var row = STATE.baselines.filter(function(b){ return b.employee_id === employeeId; })[0];
     return row ? row.reset_at : null;
   }
+  /* ---------- resumable quiz session ---------- */
+  function getSession(employeeId){
+    return STATE.sessions.filter(function(s){ return s.employee_id === employeeId; })[0] || null;
+  }
+  function saveSession(employeeId, quizObj){
+    var row = {
+      employee_id: employeeId,
+      question_ids: quizObj.questions.map(function(q){ return q.id; }),
+      idx: quizObj.idx,
+      score: quizObj.score,
+      updated_at: new Date().toISOString()
+    };
+    sbUpsert("quiz_sessions", row, "employee_id").then(function(saved){
+      STATE.sessions = STATE.sessions.filter(function(s){ return s.employee_id !== employeeId; });
+      STATE.sessions.push(saved);
+    });
+  }
+  function clearSession(employeeId){
+    STATE.sessions = STATE.sessions.filter(function(s){ return s.employee_id !== employeeId; });
+    sbDelete("quiz_sessions", "employee_id=eq." + encodeURIComponent(employeeId)).catch(function(){});
+  }
+  function resumeSession(session){
+    var qById = {};
+    allQuestions().forEach(function(q){ qById[q.id] = q; });
+    var questions = session.question_ids.map(function(qid){ return qById[qid]; }).filter(Boolean);
+    quiz = { questions: questions, idx: session.idx, score: session.score, answered: false };
+    renderQuizLive();
+  }
+
   function resetBaseline(employeeId, onDone){
     if(!window.confirm("確定要重新開始這一輪「落點」統計嗎？\n\n之前的作答紀錄不會被刪除，收藏和錯題清單也不受影響，只有各章節正確率會從現在這一刻重新累計。")){
       return;
@@ -775,23 +812,44 @@ table.admin-table tr:last-child td{border-bottom:none;}
     var options = chaptersWithQ.map(function(c){
       return '<option value="' + esc(c.id) + '">' + esc(c.title) + '（' + questionCountFor(c.id) + ' 題）</option>';
     }).join('');
+
+    var id = getEmployeeId();
+    var session = id ? getSession(id) : null;
+
     wrap.innerHTML =
       '<div class="quiz-setup">' +
         '<h2>選擇題測驗</h2>' +
+        (session ?
+          '<div class="resume-card">' +
+            '<div>上次測驗還沒做完：第 <b>' + (session.idx+1) + ' / ' + session.question_ids.length + '</b> 題，目前 <b>' + session.score + '</b> 分</div>' +
+            '<div class="resume-actions">' +
+              '<button class="btn btn-primary" id="quiz-resume">繼續上次的測驗</button>' +
+              '<button class="btn btn-ghost" id="quiz-discard">放棄，重新開始</button>' +
+            '</div>' +
+          '</div>' : '') +
         (chaptersWithQ.length ? '' : '<div class="empty-state" style="padding:20px 0;">目前題庫是空的，先去「新增內容」新增幾題吧。</div>') +
         (chaptersWithQ.length ?
           '<label>章節範圍</label>' +
           '<select id="quiz-chapter"><option value="__all__">全部章節混合（' + allQuestions().length + ' 題）</option>' + options + '</select>' +
-          '<button class="btn btn-primary" id="quiz-start">開始測驗</button>'
+          '<button class="btn btn-primary" id="quiz-start">開始新測驗</button>'
         : '') +
       '</div>';
+
+    if(session){
+      document.getElementById('quiz-resume').addEventListener('click', function(){ resumeSession(session); });
+      document.getElementById('quiz-discard').addEventListener('click', function(){
+        clearSession(id);
+        renderQuizSetup();
+      });
+    }
     var startBtn = document.getElementById('quiz-start');
     if(startBtn){
       startBtn.addEventListener('click', function(){
-        ensureEmployeeId();
+        var eid = ensureEmployeeId();
         var chId = document.getElementById('quiz-chapter').value;
         var pool = chId === '__all__' ? allQuestions() : allQuestions().filter(function(q){ return q.chapterId === chId; });
         quiz = { questions: shuffle(pool), idx: 0, score: 0, answered: false };
+        if(eid) saveSession(eid, quiz);
         renderQuizLive();
       });
     }
@@ -802,6 +860,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
     if(!quiz || quiz.idx >= quiz.questions.length){
       var total = quiz ? quiz.questions.length : 0;
       var score = quiz ? quiz.score : 0;
+      var eidDone = getEmployeeId();
+      if(eidDone) clearSession(eidDone);
       wrap.innerHTML =
         '<div class="quiz-live quiz-done">' +
           '<div class="label">測驗結束</div>' +
@@ -845,6 +905,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
 
     document.getElementById('quiz-next').addEventListener('click', function(){
       quiz.idx++;
+      var eidNext = getEmployeeId();
+      if(eidNext && quiz.idx < quiz.questions.length) saveSession(eidNext, quiz);
       renderQuizLive();
     });
   }
