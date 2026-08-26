@@ -140,6 +140,7 @@ input,textarea,select{font-family:inherit;}
 .content-inner hr.divider{border:none;border-top:1px solid var(--line);margin:0 0 28px;}
 
 .block-h2{font-family:var(--font-display);font-weight:700;font-size:21px;color:var(--ink);margin:30px 0 12px;text-wrap:balance;}
+hr.content-divider{border:none;border-top:2px dashed var(--line);margin:40px 0;}
 .block-h3{font-family:var(--font-display);font-weight:600;font-size:17px;color:var(--spo2);margin:22px 0 8px;text-wrap:balance;}
 .block-h4{font-family:var(--font-display);font-weight:600;font-size:14.5px;color:var(--ink-dim);margin:16px 0 6px;text-transform:uppercase;letter-spacing:.04em;}
 .block-p{margin:10px 0;color:var(--ink);}
@@ -542,6 +543,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
       if(b.type === "h3") return '<div class="block-h3">' + inline(b.text) + '</div>';
       if(b.type === "h4") return '<div class="block-h4">' + inline(b.text) + '</div>';
       if(b.type === "quote") return '<div class="block-quote"><span class="tag">TIP</span>' + inline(b.text) + '</div>';
+      if(b.type === "divider") return '<hr class="content-divider">';
       if(b.type === "img") return '<div class="block-img"><img src="' + esc(b.path) + '" alt="筆記附圖" loading="lazy"></div>';
       if(b.type === "li") return '<div class="block-li indent-' + Math.min(b.indent,3) + '"><span class="bullet">&#9656;</span><span class="txt">' + inline(b.text) + '</span></div>';
       if(b.type === "table"){
