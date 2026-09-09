@@ -400,7 +400,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
   var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92ZXV1a21sZm1kZGFuend1d2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2NDA4ODIsImV4cCI6MjEwMzIxNjg4Mn0.eazZ272x7UsLcD1YvfMI19SB9i5B6XDQfV93H5c2vsQ";
 
   /* ================= data & state ================= */
-  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [] };
+  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [], examAttempts: [] };
   var ADMIN_PASSPHRASE = "cmh7760";
   var EMPLOYEE_ID_KEY = "mazhuan_employee_id";
   var ADMIN_SESSION_KEY = "mazhuan_admin_ok";
@@ -499,7 +499,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
   function loadAll(){
     return Promise.all([
       sbSelect("chapters"), sbSelect("questions"), sbSelect("quiz_attempts"), sbSelect("favorites"),
-      sbSelect("stat_baselines"), sbSelect("quiz_sessions"), sbSelect("exam_questions")
+      sbSelect("stat_baselines"), sbSelect("quiz_sessions"), sbSelect("exam_questions"), sbSelect("exam_attempts")
     ]).then(function(results){
       STATE.chapters = results[0];
       STATE.questions = results[1];
@@ -508,6 +508,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
       STATE.baselines = results[4];
       STATE.sessions = results[5];
       STATE.examQuestions = results[6];
+      STATE.examAttempts = results[7];
     });
   }
 
@@ -677,17 +678,28 @@ table.admin-table tr:last-child td{border-bottom:none;}
       });
     }
   }
+  function recordExamAttempt(q, pickedKey, correct){
+    var id = getEmployeeId();
+    if(!id) return;
+    var row = { id: uid('eatt'), employee_id: id, question_id: q.id, selected_key: pickedKey, is_correct: correct };
+    sbInsert("exam_attempts", row).then(function(saved){ STATE.examAttempts.push(saved); });
+  }
   function recordAttempt(q, selectedIndex, correct){
     var id = getEmployeeId();
     if(!id) return;
+    if(q.isExam){
+      recordExamAttempt(q, String.fromCharCode(65 + selectedIndex), correct);
+      return;
+    }
     var row = {
       id: uid('att'), employee_id: id, chapter_id: q.chapterId,
       question_id: q.id, selected_index: selectedIndex, is_correct: correct
     };
     sbInsert("quiz_attempts", row).then(function(saved){ STATE.attempts.push(saved); });
   }
+  function allAttempts(){ return STATE.attempts.concat(STATE.examAttempts); }
   function latestAttemptsByQuestion(employeeId, sinceIso){
-    var mine = STATE.attempts.filter(function(a){
+    var mine = allAttempts().filter(function(a){
       return a.employee_id === employeeId && (!sinceIso || a.answered_at >= sinceIso);
     });
     mine.sort(function(a,b){ return new Date(a.answered_at) - new Date(b.answered_at); });
@@ -1014,6 +1026,25 @@ table.admin-table tr:last-child td{border-bottom:none;}
     return Object.keys(q.options || {}).sort();
   }
 
+  /* normalize an exam_questions row into the shape renderQuizLive/answerQuiz
+     expect, so wrong exam questions can sit in the same 錯題 list and be
+     retried through the ordinary quiz UI (chapter classification for exam
+     questions is deferred, so chapterId stays null here on purpose). */
+  function examToQuizShape(q){
+    var keys = examOptionKeys(q);
+    var firstCorrect = q.answer ? q.answer.charAt(0) : null;
+    return {
+      id: q.id,
+      chapterId: null,
+      question: q.question,
+      options: keys.map(function(k){ return q.options[k]; }),
+      answerIndex: firstCorrect ? keys.indexOf(firstCorrect) : -1,
+      explanation: q.explanation,
+      isExam: true,
+      examTag: q.year + ' 年考古題 第 ' + q.question_no + ' 題'
+    };
+  }
+
   function examReveal(q){
     return (q.void ?
         '<div class="exam-void-badge">本題送分（所有選項皆列為正確）</div>' :
@@ -1076,6 +1107,10 @@ table.admin-table tr:last-child td{border-bottom:none;}
     if(examBrowse.answered) return;
     examBrowse.answered = true;
     var q = examBrowse.list[examBrowse.idx];
+    if(!q.void){
+      var correct = !!(q.answer && q.answer.indexOf(picked) !== -1);
+      recordExamAttempt(q, picked, correct);
+    }
     examShowResult(q, picked);
   }
 
@@ -1117,6 +1152,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     var latest = latestAttemptsByQuestion(id, baseline);
     var qById = {};
     allQuestions().forEach(function(q){ qById[q.id] = q; });
+    STATE.examQuestions.forEach(function(q){ qById[q.id] = examToQuizShape(q); });
 
     var wrongQuestions = Object.keys(latestAll)
       .filter(function(qid){ return latestAll[qid].is_correct === false; })
@@ -1132,6 +1168,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     Object.keys(latest).forEach(function(qid){
       var q = qById[qid]; if(!q) return;
       var key = q.chapterId;
+      if(!key) return; // 考古題目前沒有章節分類，落點統計先不計入
       byChapter[key] = byChapter[key] || { total: 0, correct: 0 };
       byChapter[key].total++;
       if(latest[qid].is_correct) byChapter[key].correct++;
@@ -1149,7 +1186,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
       if(!list.length) return '<div class="empty-state" style="padding:14px 0;">目前沒有題目</div>';
       return list.map(function(q){
         var ch = findChapter(q.chapterId);
-        return '<div class="mine-q-row"><span class="ch-tag">' + esc(ch ? ch.title : '') + '</span><span class="q-txt">' + esc(q.question) + '</span></div>';
+        var tag = ch ? ch.title : (q.examTag || '');
+        return '<div class="mine-q-row"><span class="ch-tag">' + esc(tag) + '</span><span class="q-txt">' + esc(q.question) + '</span></div>';
       }).join('');
     }
 
