@@ -264,7 +264,6 @@ s{color:var(--ink-faint);}
 .exam-images{display:flex;flex-direction:column;gap:10px;margin:0 0 18px;}
 .exam-images img{max-width:100%;border-radius:var(--radius-ctl);border:1px solid var(--line);}
 .exam-options{display:flex;flex-direction:column;gap:10px;}
-.exam-opt{cursor:default;white-space:pre-wrap;}
 .exam-void-badge{
   margin-top:16px;padding:10px 14px;background:rgba(228,183,80,.12);border-left:3px solid var(--resp);
   border-radius:var(--radius-ctl);color:var(--resp);font-size:13.5px;
@@ -971,7 +970,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
   }
 
   /* ---------- exam (歷屆考古題) tab ---------- */
-  var examBrowse = null; // {year:"__all__"|2020..2025, list:[], idx:0, revealed:false}
+  var examBrowse = null; // {year:"__all__"|2020..2025, list:[], idx:0, answered:false}
 
   function examYears(){
     var years = {};
@@ -1005,7 +1004,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
         var y = document.getElementById('exam-year').value;
         var pool = y === '__all__' ? STATE.examQuestions.slice() : STATE.examQuestions.filter(function(q){ return String(q.year) === y; });
         pool.sort(function(a,b){ return a.year - b.year || a.question_no - b.question_no; });
-        examBrowse = { year: y, list: pool, idx: 0, revealed: false };
+        examBrowse = { year: y, list: pool, idx: 0, answered: false };
         renderExamLive();
       });
     }
@@ -1015,12 +1014,20 @@ table.admin-table tr:last-child td{border-bottom:none;}
     return Object.keys(q.options || {}).sort();
   }
 
+  function examReveal(q){
+    return (q.void ?
+        '<div class="exam-void-badge">本題送分（所有選項皆列為正確）</div>' :
+        '<div class="exam-answer-tag mono">正確答案：' + esc(q.answer || '—') + '</div>') +
+      (q.reference ? '<div class="exam-ref mono">' + esc(q.reference) + '</div>' : '') +
+      (q.explanation ? '<div class="exam-explain"><span class="tag">詳解</span><div class="exam-explain-body">' + esc(q.explanation) + '</div></div>' :
+        '<div class="exam-explain exam-explain-empty">本題原始資料沒有留下詳解文字。</div>');
+  }
+
   function renderExamLive(){
     var wrap = document.getElementById('exam-wrap');
     if(!examBrowse || !examBrowse.list.length){ renderExamSetup(); return; }
     var q = examBrowse.list[examBrowse.idx];
     var keys = examOptionKeys(q);
-    var revealed = examBrowse.revealed;
 
     wrap.innerHTML =
       '<div class="exam-live">' +
@@ -1033,23 +1040,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
           '<div class="exam-images">' + q.images.map(function(p){
             return '<img src="' + esc(p) + '" alt="題目附圖" loading="lazy">';
           }).join('') + '</div>' : '') +
-        '<div class="exam-options" id="exam-options">' +
-          keys.map(function(k){
-            var isAns = revealed && q.answer && q.answer.indexOf(k) !== -1;
-            return '<div class="opt-btn exam-opt' + (isAns ? ' correct' : '') + '">' +
-              '<span class="k mono">' + k + '</span><span>' + esc(q.options[k]) + '</span></div>';
-          }).join('') +
-        '</div>' +
-        '<div id="exam-reveal-slot">' +
-          (revealed ?
-            (q.void ?
-              '<div class="exam-void-badge">本題送分（所有選項皆列為正確）</div>' :
-              '<div class="exam-answer-tag mono">正確答案：' + esc(q.answer || '—') + '</div>') +
-            (q.reference ? '<div class="exam-ref mono">' + esc(q.reference) + '</div>' : '') +
-            (q.explanation ? '<div class="exam-explain"><span class="tag">詳解</span><div class="exam-explain-body">' + esc(q.explanation) + '</div></div>' :
-              '<div class="exam-explain exam-explain-empty">本題原始資料沒有留下詳解文字。</div>')
-          : '<button class="btn btn-primary" id="exam-reveal">顯示答案</button>') +
-        '</div>' +
+        '<div class="exam-options" id="exam-options"></div>' +
+        '<div id="exam-reveal-slot"></div>' +
         '<div class="quiz-nav exam-nav">' +
           '<button class="btn btn-ghost" id="exam-prev"' + (examBrowse.idx === 0 ? ' disabled' : '') + '>上一題</button>' +
           '<button class="btn btn-ghost" id="exam-back">回選單</button>' +
@@ -1057,23 +1049,47 @@ table.admin-table tr:last-child td{border-bottom:none;}
         '</div>' +
       '</div>';
 
-    var revealBtn = document.getElementById('exam-reveal');
-    if(revealBtn){
-      revealBtn.addEventListener('click', function(){
-        examBrowse.revealed = true;
-        renderExamLive();
-      });
-    }
+    var optWrap = document.getElementById('exam-options');
+    keys.forEach(function(k){
+      var b = document.createElement('button');
+      b.className = 'opt-btn';
+      b.innerHTML = '<span class="k mono">' + k + '</span><span>' + esc(q.options[k]) + '</span>';
+      b.addEventListener('click', function(){ examAnswerPick(k); });
+      optWrap.appendChild(b);
+    });
+
     document.getElementById('exam-prev').addEventListener('click', function(){
-      if(examBrowse.idx > 0){ examBrowse.idx--; examBrowse.revealed = false; renderExamLive(); }
+      if(examBrowse.idx > 0){ examBrowse.idx--; examBrowse.answered = false; renderExamLive(); }
     });
     document.getElementById('exam-next').addEventListener('click', function(){
-      if(examBrowse.idx < examBrowse.list.length-1){ examBrowse.idx++; examBrowse.revealed = false; renderExamLive(); }
+      if(examBrowse.idx < examBrowse.list.length-1){ examBrowse.idx++; examBrowse.answered = false; renderExamLive(); }
     });
     document.getElementById('exam-back').addEventListener('click', function(){
       examBrowse = null;
       renderExamSetup();
     });
+
+    if(examBrowse.answered){ examShowResult(q); }
+  }
+
+  function examAnswerPick(picked){
+    if(examBrowse.answered) return;
+    examBrowse.answered = true;
+    var q = examBrowse.list[examBrowse.idx];
+    examShowResult(q, picked);
+  }
+
+  function examShowResult(q, picked){
+    var buttons = document.querySelectorAll('#exam-options .opt-btn');
+    buttons.forEach(function(btn){
+      btn.disabled = true;
+      if(q.void) return; // 送分：所有選項皆算正確，不標示對錯
+      var k = btn.querySelector('.k').textContent;
+      var isCorrect = q.answer && q.answer.indexOf(k) !== -1;
+      if(isCorrect) btn.classList.add('correct');
+      else if(picked && k === picked) btn.classList.add('incorrect');
+    });
+    document.getElementById('exam-reveal-slot').innerHTML = examReveal(q);
   }
 
   /* ---------- mine tab ---------- */
