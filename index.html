@@ -243,6 +243,43 @@ s{color:var(--ink-faint);}
 .quiz-done .final{font-family:var(--font-mono);font-size:44px;color:var(--ecg);margin:8px 0;}
 .quiz-done .label{color:var(--ink-dim);font-family:var(--font-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;}
 
+/* ---------- exam (歷屆考古題) view ---------- */
+#view-exam{width:100%;justify-content:center;overflow-y:auto;}
+.exam-wrap{max-width:640px;width:100%;padding:40px 24px 100px;margin:0 auto;}
+.exam-setup{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-card);padding:24px;}
+.exam-setup h2{font-family:var(--font-display);font-size:20px;margin:0 0 14px;}
+.exam-setup label{display:block;font-family:var(--font-mono);font-size:11px;color:var(--ink-dim);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+.exam-setup select{
+  width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+  padding:10px;border-radius:var(--radius-ctl);font-size:14px;margin-bottom:16px;
+}
+.exam-live{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-card);padding:24px;}
+.exam-progress{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px;}
+.exam-progress .idx{font-family:var(--font-mono);font-size:12px;color:var(--ink-dim);letter-spacing:.06em;}
+.exam-year-tag{
+  display:inline-block;font-size:10px;color:var(--spo2);
+  border:1px solid #22506B;border-radius:3px;padding:2px 6px;
+}
+.exam-q{font-size:17px;color:var(--ink);margin:0 0 18px;text-wrap:balance;white-space:pre-wrap;}
+.exam-images{display:flex;flex-direction:column;gap:10px;margin:0 0 18px;}
+.exam-images img{max-width:100%;border-radius:var(--radius-ctl);border:1px solid var(--line);}
+.exam-options{display:flex;flex-direction:column;gap:10px;}
+.exam-opt{cursor:default;white-space:pre-wrap;}
+.exam-void-badge{
+  margin-top:16px;padding:10px 14px;background:rgba(228,183,80,.12);border-left:3px solid var(--resp);
+  border-radius:var(--radius-ctl);color:var(--resp);font-size:13.5px;
+}
+.exam-answer-tag{margin-top:16px;color:var(--ecg);font-size:14px;}
+.exam-ref{margin-top:6px;color:var(--ink-faint);font-size:11.5px;}
+.exam-explain{
+  margin-top:12px;padding:12px 14px;background:var(--panel-2);border-radius:var(--radius-ctl);
+  border-left:3px solid var(--spo2);font-size:13.5px;color:var(--ink-dim);
+}
+.exam-explain .tag{font-family:var(--font-mono);font-size:10px;color:var(--spo2);letter-spacing:.1em;margin-right:8px;display:block;margin-bottom:6px;}
+.exam-explain-body{white-space:pre-wrap;line-height:1.7;}
+.exam-explain-empty{color:var(--ink-faint);font-style:italic;}
+.exam-nav.quiz-nav{justify-content:space-between;}
+
 /* ---------- add view ---------- */
 #view-add{width:100%;overflow-y:auto;justify-content:center;}
 .add-wrap{max-width:640px;width:100%;padding:40px 24px 100px;display:flex;flex-direction:column;gap:24px;}
@@ -364,7 +401,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
   var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92ZXV1a21sZm1kZGFuend1d2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2NDA4ODIsImV4cCI6MjEwMzIxNjg4Mn0.eazZ272x7UsLcD1YvfMI19SB9i5B6XDQfV93H5c2vsQ";
 
   /* ================= data & state ================= */
-  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [] };
+  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [] };
   var ADMIN_PASSPHRASE = "cmh7760";
   var EMPLOYEE_ID_KEY = "mazhuan_employee_id";
   var ADMIN_SESSION_KEY = "mazhuan_admin_ok";
@@ -463,7 +500,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
   function loadAll(){
     return Promise.all([
       sbSelect("chapters"), sbSelect("questions"), sbSelect("quiz_attempts"), sbSelect("favorites"),
-      sbSelect("stat_baselines"), sbSelect("quiz_sessions")
+      sbSelect("stat_baselines"), sbSelect("quiz_sessions"), sbSelect("exam_questions")
     ]).then(function(results){
       STATE.chapters = results[0];
       STATE.questions = results[1];
@@ -471,6 +508,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
       STATE.favorites = results[3];
       STATE.baselines = results[4];
       STATE.sessions = results[5];
+      STATE.examQuestions = results[6];
     });
   }
 
@@ -710,6 +748,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
         '<div class="tabs">' +
           '<button class="tab-btn" data-tab="read">讀筆記</button>' +
           '<button class="tab-btn" data-tab="quiz">測驗</button>' +
+          '<button class="tab-btn" data-tab="exam">考古題</button>' +
           '<button class="tab-btn" data-tab="mine">我的紀錄</button>' +
           '<button class="tab-btn" data-tab="add">新增內容</button>' +
           '<button class="tab-btn" data-tab="admin">後台</button>' +
@@ -728,6 +767,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
         '<div class="content-pane"><div class="content-inner" id="content-inner"></div></div>' +
       '</div>' +
       '<div class="view" id="view-quiz"><div class="quiz-wrap" id="quiz-wrap"></div></div>' +
+      '<div class="view" id="view-exam"><div class="exam-wrap" id="exam-wrap"></div></div>' +
       '<div class="view" id="view-mine"><div class="mine-wrap" id="mine-wrap"></div></div>' +
       '<div class="view" id="view-add"><div class="add-wrap" id="add-wrap"></div></div>' +
       '<div class="view" id="view-admin"><div class="admin-wrap" id="admin-wrap"></div></div>';
@@ -748,11 +788,12 @@ table.admin-table tr:last-child td{border-bottom:none;}
     document.querySelectorAll('.tab-btn').forEach(function(b){
       b.classList.toggle('active', b.getAttribute('data-tab') === tab);
     });
-    ['read','quiz','mine','add','admin'].forEach(function(t){
+    ['read','quiz','exam','mine','add','admin'].forEach(function(t){
       document.getElementById('view-' + t).classList.toggle('active', t === tab);
     });
     if(tab === 'read') renderRead();
     if(tab === 'quiz') renderQuizSetup();
+    if(tab === 'exam') renderExamSetup();
     if(tab === 'mine') renderMine();
     if(tab === 'add') renderAdd();
     if(tab === 'admin') renderAdmin();
@@ -927,6 +968,112 @@ table.admin-table tr:last-child td{border-bottom:none;}
     document.getElementById('quiz-explain-slot').innerHTML =
       '<div class="quiz-explain"><span class="tag">解析</span>' + esc(q.explanation || '') + '</div>';
     document.getElementById('quiz-next').disabled = false;
+  }
+
+  /* ---------- exam (歷屆考古題) tab ---------- */
+  var examBrowse = null; // {year:"__all__"|2020..2025, list:[], idx:0, revealed:false}
+
+  function examYears(){
+    var years = {};
+    STATE.examQuestions.forEach(function(q){ years[q.year] = (years[q.year]||0) + 1; });
+    return Object.keys(years).map(Number).sort(function(a,b){ return b - a; }).map(function(y){
+      return { year: y, count: years[y] };
+    });
+  }
+
+  function renderExamSetup(){
+    var wrap = document.getElementById('exam-wrap');
+    var years = examYears();
+    var total = STATE.examQuestions.length;
+    var options = years.map(function(y){
+      return '<option value="' + y.year + '">' + y.year + ' 年（' + y.count + ' 題）</option>';
+    }).join('');
+
+    wrap.innerHTML =
+      '<div class="exam-setup">' +
+        '<h2>歷屆考古題</h2>' +
+        (total ?
+          '<label>選擇年度</label>' +
+          '<select id="exam-year"><option value="__all__">全部年度混合（' + total + ' 題）</option>' + options + '</select>' +
+          '<button class="btn btn-primary" id="exam-start">開始瀏覽</button>'
+        : '<div class="empty-state" style="padding:20px 0;">考古題資料還沒上架。</div>') +
+      '</div>';
+
+    var startBtn = document.getElementById('exam-start');
+    if(startBtn){
+      startBtn.addEventListener('click', function(){
+        var y = document.getElementById('exam-year').value;
+        var pool = y === '__all__' ? STATE.examQuestions.slice() : STATE.examQuestions.filter(function(q){ return String(q.year) === y; });
+        pool.sort(function(a,b){ return a.year - b.year || a.question_no - b.question_no; });
+        examBrowse = { year: y, list: pool, idx: 0, revealed: false };
+        renderExamLive();
+      });
+    }
+  }
+
+  function examOptionKeys(q){
+    return Object.keys(q.options || {}).sort();
+  }
+
+  function renderExamLive(){
+    var wrap = document.getElementById('exam-wrap');
+    if(!examBrowse || !examBrowse.list.length){ renderExamSetup(); return; }
+    var q = examBrowse.list[examBrowse.idx];
+    var keys = examOptionKeys(q);
+    var revealed = examBrowse.revealed;
+
+    wrap.innerHTML =
+      '<div class="exam-live">' +
+        '<div class="exam-progress">' +
+          '<span class="idx mono">第 ' + (examBrowse.idx+1) + ' / ' + examBrowse.list.length + ' 題</span>' +
+          '<span class="exam-year-tag mono">' + q.year + ' 年 第 ' + q.question_no + ' 題</span>' +
+        '</div>' +
+        '<div class="exam-q">' + esc(q.question) + '</div>' +
+        (q.has_image && q.images && q.images.length ?
+          '<div class="exam-images">' + q.images.map(function(p){
+            return '<img src="' + esc(p) + '" alt="題目附圖" loading="lazy">';
+          }).join('') + '</div>' : '') +
+        '<div class="exam-options" id="exam-options">' +
+          keys.map(function(k){
+            var isAns = revealed && q.answer && q.answer.indexOf(k) !== -1;
+            return '<div class="opt-btn exam-opt' + (isAns ? ' correct' : '') + '">' +
+              '<span class="k mono">' + k + '</span><span>' + esc(q.options[k]) + '</span></div>';
+          }).join('') +
+        '</div>' +
+        '<div id="exam-reveal-slot">' +
+          (revealed ?
+            (q.void ?
+              '<div class="exam-void-badge">本題送分（所有選項皆列為正確）</div>' :
+              '<div class="exam-answer-tag mono">正確答案：' + esc(q.answer || '—') + '</div>') +
+            (q.reference ? '<div class="exam-ref mono">' + esc(q.reference) + '</div>' : '') +
+            (q.explanation ? '<div class="exam-explain"><span class="tag">詳解</span><div class="exam-explain-body">' + esc(q.explanation) + '</div></div>' :
+              '<div class="exam-explain exam-explain-empty">本題原始資料沒有留下詳解文字。</div>')
+          : '<button class="btn btn-primary" id="exam-reveal">顯示答案</button>') +
+        '</div>' +
+        '<div class="quiz-nav exam-nav">' +
+          '<button class="btn btn-ghost" id="exam-prev"' + (examBrowse.idx === 0 ? ' disabled' : '') + '>上一題</button>' +
+          '<button class="btn btn-ghost" id="exam-back">回選單</button>' +
+          '<button class="btn btn-primary" id="exam-next"' + (examBrowse.idx >= examBrowse.list.length-1 ? ' disabled' : '') + '>下一題</button>' +
+        '</div>' +
+      '</div>';
+
+    var revealBtn = document.getElementById('exam-reveal');
+    if(revealBtn){
+      revealBtn.addEventListener('click', function(){
+        examBrowse.revealed = true;
+        renderExamLive();
+      });
+    }
+    document.getElementById('exam-prev').addEventListener('click', function(){
+      if(examBrowse.idx > 0){ examBrowse.idx--; examBrowse.revealed = false; renderExamLive(); }
+    });
+    document.getElementById('exam-next').addEventListener('click', function(){
+      if(examBrowse.idx < examBrowse.list.length-1){ examBrowse.idx++; examBrowse.revealed = false; renderExamLive(); }
+    });
+    document.getElementById('exam-back').addEventListener('click', function(){
+      examBrowse = null;
+      renderExamSetup();
+    });
   }
 
   /* ---------- mine tab ---------- */
