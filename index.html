@@ -400,7 +400,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
   var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92ZXV1a21sZm1kZGFuend1d2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2NDA4ODIsImV4cCI6MjEwMzIxNjg4Mn0.eazZ272x7UsLcD1YvfMI19SB9i5B6XDQfV93H5c2vsQ";
 
   /* ================= data & state ================= */
-  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [], examAttempts: [] };
+  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [], examAttempts: [], oralQuestions: [] };
   var ADMIN_PASSPHRASE = "cmh7760";
   var EMPLOYEE_ID_KEY = "mazhuan_employee_id";
   var ADMIN_SESSION_KEY = "mazhuan_admin_ok";
@@ -499,7 +499,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
   function loadAll(){
     return Promise.all([
       sbSelect("chapters"), sbSelect("questions"), sbSelect("quiz_attempts"), sbSelect("favorites"),
-      sbSelect("stat_baselines"), sbSelect("quiz_sessions"), sbSelect("exam_questions"), sbSelect("exam_attempts")
+      sbSelect("stat_baselines"), sbSelect("quiz_sessions"), sbSelect("exam_questions"), sbSelect("exam_attempts"),
+      sbSelect("oral_exam_questions")
     ]).then(function(results){
       STATE.chapters = results[0];
       STATE.questions = results[1];
@@ -509,6 +510,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
       STATE.sessions = results[5];
       STATE.examQuestions = results[6];
       STATE.examAttempts = results[7];
+      STATE.oralQuestions = results[8];
     });
   }
 
@@ -760,6 +762,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
           '<button class="tab-btn" data-tab="read">讀筆記</button>' +
           '<button class="tab-btn" data-tab="quiz">測驗</button>' +
           '<button class="tab-btn" data-tab="exam">考古題</button>' +
+          '<button class="tab-btn" data-tab="oral">口試</button>' +
           '<button class="tab-btn" data-tab="mine">我的紀錄</button>' +
           '<button class="tab-btn" data-tab="add">新增內容</button>' +
           '<button class="tab-btn" data-tab="admin">後台</button>' +
@@ -779,6 +782,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
       '</div>' +
       '<div class="view" id="view-quiz"><div class="quiz-wrap" id="quiz-wrap"></div></div>' +
       '<div class="view" id="view-exam"><div class="exam-wrap" id="exam-wrap"></div></div>' +
+      '<div class="view" id="view-oral"><div class="exam-wrap" id="oral-wrap"></div></div>' +
       '<div class="view" id="view-mine"><div class="mine-wrap" id="mine-wrap"></div></div>' +
       '<div class="view" id="view-add"><div class="add-wrap" id="add-wrap"></div></div>' +
       '<div class="view" id="view-admin"><div class="admin-wrap" id="admin-wrap"></div></div>';
@@ -799,12 +803,13 @@ table.admin-table tr:last-child td{border-bottom:none;}
     document.querySelectorAll('.tab-btn').forEach(function(b){
       b.classList.toggle('active', b.getAttribute('data-tab') === tab);
     });
-    ['read','quiz','exam','mine','add','admin'].forEach(function(t){
+    ['read','quiz','exam','oral','mine','add','admin'].forEach(function(t){
       document.getElementById('view-' + t).classList.toggle('active', t === tab);
     });
     if(tab === 'read') renderRead();
     if(tab === 'quiz') renderQuizSetup();
     if(tab === 'exam') renderExamSetup();
+    if(tab === 'oral') renderOralSetup();
     if(tab === 'mine') renderMine();
     if(tab === 'add') renderAdd();
     if(tab === 'admin') renderAdmin();
@@ -1125,6 +1130,110 @@ table.admin-table tr:last-child td{border-bottom:none;}
       else if(picked && k === picked) btn.classList.add('incorrect');
     });
     document.getElementById('exam-reveal-slot').innerHTML = examReveal(q);
+  }
+
+  /* ---------- oral (口試考古題) tab ---------- */
+  var oralBrowse = null; // {key, list:[], idx:0, revealed:false}
+
+  function oralGroups(){
+    var years = {};
+    STATE.oralQuestions.forEach(function(q){ years[q.year] = (years[q.year]||0) + 1; });
+    return Object.keys(years).map(Number).sort(function(a,b){ return b - a; }).map(function(y){
+      return { year: y, count: years[y] };
+    });
+  }
+
+  var ORAL_STATION_LABEL = { case1: '第一題', case2: '第二題', tee: 'TEE 站', nb: '神經阻滯站', mock: '模擬口試' };
+
+  function renderOralSetup(){
+    var wrap = document.getElementById('oral-wrap');
+    var years = oralGroups();
+    var total = STATE.oralQuestions.length;
+    var options = years.map(function(y){
+      return '<option value="' + y.year + '">' + y.year + ' 年（' + y.count + ' 題）</option>';
+    }).join('');
+
+    wrap.innerHTML =
+      '<div class="exam-setup">' +
+        '<h2>口試考古題</h2>' +
+        (total ?
+          '<label>選擇年度</label>' +
+          '<select id="oral-year"><option value="__all__">全部年度混合（' + total + ' 題）</option>' + options + '</select>' +
+          '<button class="btn btn-primary" id="oral-start">開始練習</button>' +
+          '<div class="empty-state" style="padding:14px 0 0;font-size:12.5px;">' +
+            '目前收錄的是可直接辨識文字的考古題／模擬口試檔案；掃描影本題庫（含歷年題學會參考答案）正在陸續 OCR 整理中，之後會持續擴充。' +
+          '</div>'
+        : '<div class="empty-state" style="padding:20px 0;">口試考古題資料還沒上架。</div>') +
+      '</div>';
+
+    var startBtn = document.getElementById('oral-start');
+    if(startBtn){
+      startBtn.addEventListener('click', function(){
+        var y = document.getElementById('oral-year').value;
+        var pool = y === '__all__' ? STATE.oralQuestions.slice() : STATE.oralQuestions.filter(function(q){ return String(q.year) === y; });
+        pool.sort(function(a,b){ return a.year - b.year || String(a.station).localeCompare(String(b.station)); });
+        oralBrowse = { list: shuffle(pool), idx: 0, revealed: false };
+        renderOralLive();
+      });
+    }
+  }
+
+  function renderOralLive(){
+    var wrap = document.getElementById('oral-wrap');
+    if(!oralBrowse || !oralBrowse.list.length){ renderOralSetup(); return; }
+    var q = oralBrowse.list[oralBrowse.idx];
+    var stationLabel = ORAL_STATION_LABEL[q.station] || q.station;
+
+    wrap.innerHTML =
+      '<div class="exam-live">' +
+        '<div class="exam-progress">' +
+          '<span class="idx mono">第 ' + (oralBrowse.idx+1) + ' / ' + oralBrowse.list.length + ' 題</span>' +
+          '<span class="exam-year-tag mono">' + q.year + ' 年・' + esc(stationLabel) + '</span>' +
+        '</div>' +
+        (q.title ? '<h3 style="margin:0 0 10px;font-family:var(--font-display);font-size:16px;">' + esc(q.title) + '</h3>' : '') +
+        '<div class="exam-q">' + esc(q.scenario) + '</div>' +
+        (q.has_image && q.images && q.images.length ?
+          '<div class="exam-images">' + q.images.map(function(p){
+            return '<img src="' + esc(p) + '" alt="題目附圖" loading="lazy">';
+          }).join('') + '</div>' : '') +
+        (q.sub_questions && q.sub_questions.length ?
+          '<ol style="padding-left:20px;margin:0 0 18px;line-height:1.8;">' +
+            q.sub_questions.map(function(sq){
+              return '<li>' + esc(sq.text) + (sq.weight != null ? ' <span class="mono" style="color:var(--ink-faint);font-size:12px;">(' + sq.weight + '%)</span>' : '') + '</li>';
+            }).join('') +
+          '</ol>' : '') +
+        '<button class="btn btn-primary" id="oral-reveal"' + (oralBrowse.revealed ? ' disabled' : '') + '>顯示參考答案</button>' +
+        '<div id="oral-reveal-slot"></div>' +
+        '<div class="quiz-nav exam-nav">' +
+          '<button class="btn btn-ghost" id="oral-prev"' + (oralBrowse.idx === 0 ? ' disabled' : '') + '>上一題</button>' +
+          '<button class="btn btn-ghost" id="oral-back">回選單</button>' +
+          '<button class="btn btn-primary" id="oral-next"' + (oralBrowse.idx >= oralBrowse.list.length-1 ? ' disabled' : '') + '>下一題</button>' +
+        '</div>' +
+      '</div>';
+
+    document.getElementById('oral-reveal').addEventListener('click', function(){
+      oralBrowse.revealed = true;
+      renderOralReveal(q);
+      document.getElementById('oral-reveal').disabled = true;
+    });
+    document.getElementById('oral-prev').addEventListener('click', function(){
+      if(oralBrowse.idx > 0){ oralBrowse.idx--; oralBrowse.revealed = false; renderOralLive(); }
+    });
+    document.getElementById('oral-next').addEventListener('click', function(){
+      if(oralBrowse.idx < oralBrowse.list.length-1){ oralBrowse.idx++; oralBrowse.revealed = false; renderOralLive(); }
+    });
+    document.getElementById('oral-back').addEventListener('click', function(){
+      oralBrowse = null;
+      renderOralSetup();
+    });
+
+    if(oralBrowse.revealed) renderOralReveal(q);
+  }
+
+  function renderOralReveal(q){
+    document.getElementById('oral-reveal-slot').innerHTML =
+      '<div class="exam-explain"><span class="tag">參考答案</span><div class="exam-explain-body">' + esc(q.reference_answer || '（本題暫無參考答案）') + '</div></div>' +
+      (q.source_file ? '<div class="exam-ref mono">出處：' + esc(q.source_file) + '</div>' : '');
   }
 
   /* ---------- mine tab ---------- */
