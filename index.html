@@ -1136,21 +1136,31 @@ table.admin-table tr:last-child td{border-bottom:none;}
   var oralBrowse = null; // {key, list:[], idx:0, revealed:false}
 
   function oralGroups(){
-    var years = {};
-    STATE.oralQuestions.forEach(function(q){ years[q.year] = (years[q.year]||0) + 1; });
-    return Object.keys(years).map(Number).sort(function(a,b){ return b - a; }).map(function(y){
+    var years = {}, noYear = 0;
+    STATE.oralQuestions.forEach(function(q){
+      if(q.year == null){ noYear++; return; }
+      years[q.year] = (years[q.year]||0) + 1;
+    });
+    var list = Object.keys(years).map(Number).sort(function(a,b){ return b - a; }).map(function(y){
       return { year: y, count: years[y] };
     });
+    if(noYear) list.push({ year: null, count: noYear });
+    return list;
   }
 
-  var ORAL_STATION_LABEL = { case1: '第一題', case2: '第二題', tee: 'TEE 站', nb: '神經阻滯站', mock: '模擬口試' };
+  var ORAL_STATION_LABEL = {
+    case1: '第一題', case2: '第二題', tee: 'TEE 站', nb: '神經阻滯站', mock: '模擬口試',
+    bank1: '考古題彙編一', bank2: '考古題彙編二', bank3: '考古題彙編三', assoc: '學會題庫'
+  };
 
   function renderOralSetup(){
     var wrap = document.getElementById('oral-wrap');
     var years = oralGroups();
     var total = STATE.oralQuestions.length;
     var options = years.map(function(y){
-      return '<option value="' + y.year + '">' + y.year + ' 年（' + y.count + ' 題）</option>';
+      var val = y.year == null ? '__none__' : y.year;
+      var label = y.year == null ? '年份不詳' : (y.year + ' 年');
+      return '<option value="' + val + '">' + label + '（' + y.count + ' 題）</option>';
     }).join('');
 
     wrap.innerHTML =
@@ -1161,7 +1171,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
           '<select id="oral-year"><option value="__all__">全部年度混合（' + total + ' 題）</option>' + options + '</select>' +
           '<button class="btn btn-primary" id="oral-start">開始練習</button>' +
           '<div class="empty-state" style="padding:14px 0 0;font-size:12.5px;">' +
-            '目前收錄的是可直接辨識文字的考古題／模擬口試檔案；掃描影本題庫（含歷年題學會參考答案）正在陸續 OCR 整理中，之後會持續擴充。' +
+            '收錄近年官方口試考古題、模擬口試，以及歷年彙編筆記與學會題庫（部分為掃描辨識，內容如有疏漏請對照原始教科書）。' +
           '</div>'
         : '<div class="empty-state" style="padding:20px 0;">口試考古題資料還沒上架。</div>') +
       '</div>';
@@ -1170,8 +1180,13 @@ table.admin-table tr:last-child td{border-bottom:none;}
     if(startBtn){
       startBtn.addEventListener('click', function(){
         var y = document.getElementById('oral-year').value;
-        var pool = y === '__all__' ? STATE.oralQuestions.slice() : STATE.oralQuestions.filter(function(q){ return String(q.year) === y; });
-        pool.sort(function(a,b){ return a.year - b.year || String(a.station).localeCompare(String(b.station)); });
+        var pool = y === '__all__' ? STATE.oralQuestions.slice() :
+          y === '__none__' ? STATE.oralQuestions.filter(function(q){ return q.year == null; }) :
+          STATE.oralQuestions.filter(function(q){ return String(q.year) === y; });
+        pool.sort(function(a,b){
+          var ay = a.year == null ? -1 : a.year, by = b.year == null ? -1 : b.year;
+          return ay - by || String(a.station).localeCompare(String(b.station));
+        });
         oralBrowse = { list: shuffle(pool), idx: 0, revealed: false };
         renderOralLive();
       });
@@ -1183,12 +1198,13 @@ table.admin-table tr:last-child td{border-bottom:none;}
     if(!oralBrowse || !oralBrowse.list.length){ renderOralSetup(); return; }
     var q = oralBrowse.list[oralBrowse.idx];
     var stationLabel = ORAL_STATION_LABEL[q.station] || q.station;
+    var yearLabel = q.year == null ? '年份不詳' : (q.year + ' 年');
 
     wrap.innerHTML =
       '<div class="exam-live">' +
         '<div class="exam-progress">' +
           '<span class="idx mono">第 ' + (oralBrowse.idx+1) + ' / ' + oralBrowse.list.length + ' 題</span>' +
-          '<span class="exam-year-tag mono">' + q.year + ' 年・' + esc(stationLabel) + '</span>' +
+          '<span class="exam-year-tag mono">' + esc(yearLabel) + '・' + esc(stationLabel) + '</span>' +
         '</div>' +
         (q.title ? '<h3 style="margin:0 0 10px;font-family:var(--font-display);font-size:16px;">' + esc(q.title) + '</h3>' : '') +
         '<div class="exam-q">' + esc(q.scenario) + '</div>' +
