@@ -263,6 +263,10 @@ s{color:var(--ink-faint);}
 .exam-q{font-size:17px;color:var(--ink);margin:0 0 18px;text-wrap:balance;white-space:pre-wrap;}
 .exam-images{display:flex;flex-direction:column;gap:10px;margin:0 0 18px;}
 .exam-images img{max-width:100%;border-radius:var(--radius-ctl);border:1px solid var(--line);}
+.exam-explain-images{display:flex;flex-direction:column;gap:14px;margin:14px 0 0;}
+.exam-explain-figure{margin:0;}
+.exam-explain-figure img{max-width:100%;border-radius:var(--radius-ctl);border:1px solid var(--line);display:block;}
+.exam-explain-figure figcaption{font-size:11.5px;color:var(--ink-dim);margin-top:4px;}
 .exam-options{display:flex;flex-direction:column;gap:10px;}
 .exam-void-badge{
   margin-top:16px;padding:10px 14px;background:rgba(228,183,80,.12);border-left:3px solid var(--resp);
@@ -1050,13 +1054,27 @@ table.admin-table tr:last-child td{border-bottom:none;}
     };
   }
 
+  function examExplainImages(q){
+    var imgs = q.explanation_images;
+    if(!imgs || !imgs.length) return '';
+    return '<div class="exam-explain-images">' + imgs.map(function(item){
+      var path = typeof item === 'string' ? item : item.path;
+      var caption = typeof item === 'string' ? '' : (item.caption || '');
+      return '<figure class="exam-explain-figure">' +
+        '<img src="' + esc(path) + '" alt="詳解附圖" loading="lazy">' +
+        (caption ? '<figcaption class="mono">' + esc(caption) + '</figcaption>' : '') +
+        '</figure>';
+    }).join('') + '</div>';
+  }
+
   function examReveal(q){
     return (q.void ?
         '<div class="exam-void-badge">本題送分（所有選項皆列為正確）</div>' :
         '<div class="exam-answer-tag mono">正確答案：' + esc(q.answer || '—') + '</div>') +
       (q.reference ? '<div class="exam-ref mono">' + esc(q.reference) + '</div>' : '') +
       (q.explanation ? '<div class="exam-explain"><span class="tag">詳解</span><div class="exam-explain-body">' + esc(q.explanation) + '</div></div>' :
-        '<div class="exam-explain exam-explain-empty">本題原始資料沒有留下詳解文字。</div>');
+        '<div class="exam-explain exam-explain-empty">本題原始資料沒有留下詳解文字。</div>') +
+      examExplainImages(q);
   }
 
   function renderExamLive(){
