@@ -165,6 +165,24 @@ hr.content-divider{border:none;border-top:2px dashed var(--line);margin:40px 0;}
   letter-spacing:.1em;margin-right:8px;
 }
 
+.block-link{margin:6px 0 20px;}
+.block-link a{
+  display:inline-block;padding:9px 14px;background:var(--panel-2);
+  border:1px solid var(--line);border-radius:var(--radius-ctl);
+  color:var(--spo2);font-size:13px;text-decoration:none;
+}
+.block-link a:hover{border-color:var(--spo2);}
+
+.jump-nav{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 24px;}
+.jump-nav a{
+  font-family:var(--font-mono);font-size:11px;padding:5px 11px;border-radius:999px;
+  background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);text-decoration:none;
+}
+.jump-nav a:hover{border-color:var(--ecg);color:var(--ecg);}
+
+#view-papers2026 table.block-table td{white-space:normal;}
+#view-papers2026 .block-h3{scroll-margin-top:16px;}
+
 .block-img{margin:18px 0;padding:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius-ctl);text-align:center;}
 .block-img img{max-width:100%;height:auto;border-radius:3px;display:inline-block;}
 
@@ -400,7 +418,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
   var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92ZXV1a21sZm1kZGFuend1d2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2NDA4ODIsImV4cCI6MjEwMzIxNjg4Mn0.eazZ272x7UsLcD1YvfMI19SB9i5B6XDQfV93H5c2vsQ";
 
   /* ================= data & state ================= */
-  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [], examAttempts: [], oralQuestions: [] };
+  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [], examAttempts: [], oralQuestions: [], paperNotes2026: [] };
   var ADMIN_PASSPHRASE = "cmh7760";
   var EMPLOYEE_ID_KEY = "mazhuan_employee_id";
   var ADMIN_SESSION_KEY = "mazhuan_admin_ok";
@@ -500,7 +518,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
     return Promise.all([
       sbSelect("chapters"), sbSelect("questions"), sbSelect("quiz_attempts"), sbSelect("favorites"),
       sbSelect("stat_baselines"), sbSelect("quiz_sessions"), sbSelect("exam_questions"), sbSelect("exam_attempts"),
-      sbSelect("oral_exam_questions")
+      sbSelect("oral_exam_questions"),
+      sbSelect("paper_notes_2026").catch(function(){ return []; }) // table may not exist yet on old deploys
     ]).then(function(results){
       STATE.chapters = results[0];
       STATE.questions = results[1];
@@ -511,6 +530,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
       STATE.examQuestions = results[6];
       STATE.examAttempts = results[7];
       STATE.oralQuestions = results[8];
+      STATE.paperNotes2026 = results[9];
     });
   }
 
@@ -608,6 +628,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
       if(b.type === "h3") return '<div class="block-h3">' + inline(b.text) + '</div>';
       if(b.type === "h4") return '<div class="block-h4">' + inline(b.text) + '</div>';
       if(b.type === "quote") return '<div class="block-quote"><span class="tag">TIP</span>' + inline(b.text) + '</div>';
+      if(b.type === "link") return '<div class="block-link"><a href="' + esc(b.url) + '" target="_blank" rel="noopener">' + inline(b.text) + '</a></div>';
       if(b.type === "divider") return '<hr class="content-divider">';
       if(b.type === "img") return '<div class="block-img"><img src="' + esc(b.path) + '" alt="筆記附圖" loading="lazy"></div>';
       if(b.type === "li") return '<div class="block-li indent-' + Math.min(b.indent,3) + '"><span class="bullet">&#9656;</span><span class="txt">' + inline(b.text) + '</span></div>';
@@ -627,6 +648,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
   var currentChapterId = null;
   var searchTerm = "";
   var quiz = null; // {questions:[], idx:0, score:0, answered:false}
+  var currentPaper2026Id = null;
+  var paper2026SearchTerm = "";
 
   function chapterMatches(c, term){
     if(!term) return true;
@@ -763,6 +786,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
           '<button class="tab-btn" data-tab="quiz">測驗</button>' +
           '<button class="tab-btn" data-tab="exam">考古題</button>' +
           '<button class="tab-btn" data-tab="oral">口試</button>' +
+          '<button class="tab-btn" data-tab="papers2026">2026麻專18篇</button>' +
           '<button class="tab-btn" data-tab="mine">我的紀錄</button>' +
           '<button class="tab-btn" data-tab="add">新增內容</button>' +
           '<button class="tab-btn" data-tab="admin">後台</button>' +
@@ -783,6 +807,16 @@ table.admin-table tr:last-child td{border-bottom:none;}
       '<div class="view" id="view-quiz"><div class="quiz-wrap" id="quiz-wrap"></div></div>' +
       '<div class="view" id="view-exam"><div class="exam-wrap" id="exam-wrap"></div></div>' +
       '<div class="view" id="view-oral"><div class="exam-wrap" id="oral-wrap"></div></div>' +
+      '<div class="view" id="view-papers2026">' +
+        '<div class="sidebar">' +
+          '<div class="sidebar-search">' +
+            '<input type="text" id="paper2026-search-input" placeholder="搜尋文章標題…" autocomplete="off">' +
+            '<div class="count mono" id="paper2026-search-count"></div>' +
+          '</div>' +
+          '<div class="chapter-list" id="paper2026-list"></div>' +
+        '</div>' +
+        '<div class="content-pane"><div class="content-inner" id="paper2026-content-inner"></div></div>' +
+      '</div>' +
       '<div class="view" id="view-mine"><div class="mine-wrap" id="mine-wrap"></div></div>' +
       '<div class="view" id="view-add"><div class="add-wrap" id="add-wrap"></div></div>' +
       '<div class="view" id="view-admin"><div class="admin-wrap" id="admin-wrap"></div></div>';
@@ -794,6 +828,10 @@ table.admin-table tr:last-child td{border-bottom:none;}
       searchTerm = e.target.value;
       renderChapterList();
     });
+    document.getElementById('paper2026-search-input').addEventListener('input', function(e){
+      paper2026SearchTerm = e.target.value;
+      renderPaper2026List();
+    });
     document.getElementById('id-badge').addEventListener('click', promptEmployeeId);
     renderTopbarId();
   }
@@ -803,13 +841,14 @@ table.admin-table tr:last-child td{border-bottom:none;}
     document.querySelectorAll('.tab-btn').forEach(function(b){
       b.classList.toggle('active', b.getAttribute('data-tab') === tab);
     });
-    ['read','quiz','exam','oral','mine','add','admin'].forEach(function(t){
+    ['read','quiz','exam','oral','papers2026','mine','add','admin'].forEach(function(t){
       document.getElementById('view-' + t).classList.toggle('active', t === tab);
     });
     if(tab === 'read') renderRead();
     if(tab === 'quiz') renderQuizSetup();
     if(tab === 'exam') renderExamSetup();
     if(tab === 'oral') renderOralSetup();
+    if(tab === 'papers2026') renderPapers2026();
     if(tab === 'mine') renderMine();
     if(tab === 'add') renderAdd();
     if(tab === 'admin') renderAdmin();
@@ -859,6 +898,78 @@ table.admin-table tr:last-child td{border-bottom:none;}
       renderBlocks(c.blocks);
     pane.scrollTop = 0;
     document.querySelector('.content-pane').scrollTop = 0;
+  }
+
+  /* ---------- 2026麻專18篇 tab ---------- */
+  function allPaperNotes2026(){ return STATE.paperNotes2026; }
+  function findPaperNote2026(id){ return allPaperNotes2026().filter(function(p){ return p.id === id; })[0]; }
+
+  function paperNote2026Matches(p, term){
+    if(!term) return true;
+    var t = term.toLowerCase();
+    return p.title.toLowerCase().indexOf(t) !== -1;
+  }
+
+  function renderPapers2026(){
+    renderPaper2026List();
+    if(!currentPaper2026Id){
+      var sorted = allPaperNotes2026().slice().sort(function(a,b){ return (a.num||9999) - (b.num||9999); });
+      if(sorted[0]) currentPaper2026Id = sorted[0].id;
+      renderPaper2026List();
+    }
+    renderPaper2026Content();
+  }
+
+  function renderPaper2026List(){
+    var list = document.getElementById('paper2026-list');
+    var papers = allPaperNotes2026().slice().sort(function(a,b){ return (a.num||9999) - (b.num||9999); });
+    var filtered = papers.filter(function(p){ return paperNote2026Matches(p, paper2026SearchTerm); });
+    document.getElementById('paper2026-search-count').textContent = filtered.length + ' / ' + papers.length + ' 篇';
+    list.innerHTML = filtered.map(function(p){
+      return '<div class="chapter-item' + (p.id === currentPaper2026Id ? ' active' : '') + '" data-id="' + esc(p.id) + '">' +
+        '<span class="t">' + esc(p.title) + '</span>' +
+      '</div>';
+    }).join('') || '<div class="empty-state">找不到符合的文章</div>';
+
+    list.querySelectorAll('.chapter-item').forEach(function(item){
+      item.addEventListener('click', function(){
+        currentPaper2026Id = item.getAttribute('data-id');
+        renderPaper2026List();
+        renderPaper2026Content();
+      });
+    });
+  }
+
+  function renderPaper2026Content(){
+    var pane = document.getElementById('paper2026-content-inner');
+    var p = findPaperNote2026(currentPaper2026Id);
+    if(!p){ pane.innerHTML = '<div class="empty-state">選擇左側文章開始閱讀</div>'; return; }
+
+    var h3s = p.blocks.filter(function(b){ return b.type === 'h3'; });
+    var navHtml = '';
+    if(h3s.length){
+      navHtml = '<div class="jump-nav">' + h3s.map(function(b, i){
+        return '<a href="#p2026-h3-' + i + '">' + esc(b.text) + '</a>';
+      }).join('') + '</div>';
+    }
+
+    var h3count = -1;
+    var blocksHtml = p.blocks.map(function(b){
+      if(b.type === 'h3'){
+        h3count++;
+        return '<div class="block-h3" id="p2026-h3-' + h3count + '">' + inline(b.text) + '</div>';
+      }
+      return renderBlocks([b]);
+    }).join('');
+
+    pane.innerHTML =
+      '<h1 class="chapter-title">' + esc(p.title) + '</h1>' +
+      (p.source_citation ? '<div class="chapter-meta">' + esc(p.source_citation) + '</div>' : '') +
+      '<hr class="divider">' +
+      navHtml +
+      blocksHtml;
+    pane.scrollTop = 0;
+    document.querySelector('#view-papers2026 .content-pane').scrollTop = 0;
   }
 
   /* ---------- quiz tab ---------- */
