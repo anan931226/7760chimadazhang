@@ -137,6 +137,7 @@ input,textarea,select{font-family:inherit;}
   font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);
   letter-spacing:.06em;text-transform:uppercase;margin-bottom:18px;
 }
+.chapter-credit{font-size:12px;color:var(--ink-faint);margin:-10px 0 18px;}
 .content-inner hr.divider{border:none;border-top:1px solid var(--line);margin:0 0 28px;}
 
 .block-h2{font-family:var(--font-display);font-weight:700;font-size:21px;color:var(--ink);margin:30px 0 12px;text-wrap:balance;}
@@ -196,19 +197,27 @@ hr.content-divider{border:none;border-top:2px dashed var(--line);margin:40px 0;}
 
 .block-img{margin:18px 0;padding:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius-ctl);text-align:center;}
 .block-img img{max-width:100%;height:auto;border-radius:3px;display:inline-block;}
+.block-img figcaption{margin-top:8px;font-size:11.5px;line-height:1.6;color:var(--ink-dim);text-align:left;}
 
 .table-wrap{overflow-x:auto;margin:16px 0;border:1px solid var(--line);border-radius:var(--radius-ctl);}
 table.block-table{border-collapse:collapse;width:100%;font-size:13.5px;}
-table.block-table td{
+table.block-table td, table.block-table th{
   border-bottom:1px solid var(--line-soft);border-right:1px solid var(--line-soft);
   padding:8px 12px;font-family:var(--font-mono);white-space:nowrap;
 }
+table.block-table th{background:var(--panel-2);color:var(--spo2);font-weight:600;text-align:left;}
 table.block-table tr:first-child td{background:var(--panel-2);color:var(--spo2);font-weight:600;}
 table.block-table tr:last-child td{border-bottom:none;}
-table.block-table td:last-child{border-right:none;}
+table.block-table td:last-child,table.block-table th:last-child{border-right:none;}
+
+.block-callout{margin:16px 0;padding:14px 16px;background:var(--panel-2);border:1px solid var(--line);border-left:3px solid var(--spo2);border-radius:0 var(--radius-ctl) var(--radius-ctl) 0;}
+.block-callout.callout-info{border-left-color:var(--ecg);}
+.block-callout .callout-title{font-family:var(--font-display);font-weight:600;font-size:13.5px;margin-bottom:8px;color:var(--ink);}
+.block-callout .block-p,.block-callout .block-li{margin:0 0 4px;}
 
 b{color:var(--ink);font-weight:700;}
 s{color:var(--ink-faint);}
+mark{background:rgba(228,183,80,.28);color:var(--ink);padding:0 2px;border-radius:2px;}
 
 .empty-state{color:var(--ink-faint);padding:60px 32px;text-align:center;font-family:var(--font-display);}
 
@@ -559,13 +568,14 @@ table.admin-table tr:last-child td{border-bottom:none;}
       .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   }
   function inline(s){
-    // **bold** and ~~strike~~ -> safe <b>/<s>, everything else escaped
+    // **bold**, ~~strike~~ and ==highlight== -> safe <b>/<s>/<mark>, everything else escaped
     var out = "", src = String(s || "");
-    var re = /\*\*(.+?)\*\*|~~(.+?)~~/g, m, last = 0;
+    var re = /\*\*(.+?)\*\*|~~(.+?)~~|==(.+?)==/g, m, last = 0;
     while((m = re.exec(src))){
       out += esc(src.slice(last, m.index));
       if(m[1] !== undefined){ out += "<b>" + esc(m[1]) + "</b>"; }
-      else { out += "<s>" + esc(m[2]) + "</s>"; }
+      else if(m[2] !== undefined){ out += "<s>" + esc(m[2]) + "</s>"; }
+      else { out += "<mark>" + esc(m[3]) + "</mark>"; }
       last = re.lastIndex;
     }
     out += esc(src.slice(last));
@@ -649,14 +659,21 @@ table.admin-table tr:last-child td{border-bottom:none;}
       if(b.type === "quote") return '<div class="block-quote"><span class="tag">TIP</span>' + inline(b.text) + '</div>';
       if(b.type === "link") return '<div class="block-link"><a href="' + esc(b.url) + '" target="_blank" rel="noopener">' + inline(b.text) + '</a></div>';
       if(b.type === "divider") return '<hr class="content-divider">';
-      if(b.type === "img") return '<div class="block-img"><img src="' + esc(b.path) + '" alt="筆記附圖" loading="lazy"></div>';
+      if(b.type === "img") return '<figure class="block-img"><img src="' + esc(b.path) + '" alt="筆記附圖" loading="lazy">' +
+        (b.caption ? '<figcaption>' + b.caption.split("\n").map(function(l){ return inline(l); }).join('<br>') + '</figcaption>' : '') +
+        '</figure>';
       if(b.type === "li") return '<div class="block-li indent-' + Math.min(b.indent,3) + '"><span class="bullet">&#9656;</span><span class="txt">' + inline(b.text) + '</span></div>';
       if(b.type === "table"){
+        var thead = b.headerRow ? '<thead><tr>' + b.headerRow.map(function(c){ return '<th>' + inline(c) + '</th>'; }).join('') + '</tr></thead>' : '';
         var rows = b.rows.map(function(r){
           return '<tr>' + r.map(function(c){ return '<td>' + inline(c) + '</td>'; }).join('') + '</tr>';
         }).join('');
-        return '<div class="table-wrap"><table class="block-table">' + rows + '</table></div>';
+        return '<div class="table-wrap"><table class="block-table">' + thead + '<tbody>' + rows + '</tbody></table></div>';
       }
+      if(b.type === "callout") return '<div class="block-callout callout-' + esc(b.subtype || "note") + '">' +
+        (b.title ? '<div class="callout-title">' + inline(b.title) + '</div>' : '') +
+        renderBlocks(b.items) +
+        '</div>';
       return '<div class="block-p">' + inline(b.text) + '</div>';
     }).join("");
   }
@@ -984,6 +1001,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     pane.innerHTML =
       '<h1 class="chapter-title">' + esc(p.title) + '</h1>' +
       (p.source_citation ? '<div class="chapter-meta">' + esc(p.source_citation) + '</div>' : '') +
+      (p.credit ? '<div class="chapter-credit">筆記內容由 ' + esc(p.credit) + ' 提供</div>' : '') +
       '<hr class="divider">' +
       navHtml +
       blocksHtml +
