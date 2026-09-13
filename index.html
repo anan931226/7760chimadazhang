@@ -183,6 +183,17 @@ hr.content-divider{border:none;border-top:2px dashed var(--line);margin:40px 0;}
 #view-papers2026 table.block-table td{white-space:normal;}
 #view-papers2026 .block-h3{scroll-margin-top:16px;}
 
+.mock-exam-section{margin-top:8px;}
+.mock-exam-heading{font-family:var(--font-display);font-size:16px;margin:28px 0 14px;color:var(--ink);}
+.mock-quiz-q{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-card);padding:18px 20px;margin-bottom:14px;}
+.mock-oral-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-card);padding:18px 20px;margin-bottom:14px;}
+.mock-oral-title{font-family:var(--font-display);font-weight:600;font-size:14.5px;margin-bottom:8px;}
+.mock-oral-scenario{font-size:13.5px;line-height:1.7;color:var(--ink);margin-bottom:10px;}
+.mock-oral-subq{margin:0 0 14px;padding-left:20px;font-size:13px;line-height:1.8;color:var(--ink-dim);}
+.mock-oral-toggle{margin-bottom:10px;}
+.mock-oral-answer-list{margin:0;padding-left:16px;font-size:13px;line-height:1.75;color:var(--ink-dim);}
+.mock-oral-answer-list li{margin-bottom:4px;}
+
 .block-img{margin:18px 0;padding:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius-ctl);text-align:center;}
 .block-img img{max-width:100%;height:auto;border-radius:3px;display:inline-block;}
 
@@ -422,7 +433,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
   var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92ZXV1a21sZm1kZGFuend1d2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2NDA4ODIsImV4cCI6MjEwMzIxNjg4Mn0.eazZ272x7UsLcD1YvfMI19SB9i5B6XDQfV93H5c2vsQ";
 
   /* ================= data & state ================= */
-  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [], examAttempts: [], oralQuestions: [], paperNotes2026: [] };
+  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [], examAttempts: [], oralQuestions: [], paperNotes2026: [], papers2026Quiz: [], papers2026Oral: [] };
   var ADMIN_PASSPHRASE = "cmh7760";
   var EMPLOYEE_ID_KEY = "mazhuan_employee_id";
   var ADMIN_SESSION_KEY = "mazhuan_admin_ok";
@@ -523,7 +534,9 @@ table.admin-table tr:last-child td{border-bottom:none;}
       sbSelect("chapters"), sbSelect("questions"), sbSelect("quiz_attempts"), sbSelect("favorites"),
       sbSelect("stat_baselines"), sbSelect("quiz_sessions"), sbSelect("exam_questions"), sbSelect("exam_attempts"),
       sbSelect("oral_exam_questions"),
-      sbSelect("paper_notes_2026").catch(function(){ return []; }) // table may not exist yet on old deploys
+      sbSelect("paper_notes_2026").catch(function(){ return []; }), // table may not exist yet on old deploys
+      sbSelect("papers2026_quiz").catch(function(){ return []; }),
+      sbSelect("papers2026_oral").catch(function(){ return []; })
     ]).then(function(results){
       STATE.chapters = results[0];
       STATE.questions = results[1];
@@ -535,6 +548,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
       STATE.examAttempts = results[7];
       STATE.oralQuestions = results[8];
       STATE.paperNotes2026 = results[9];
+      STATE.papers2026Quiz = results[10];
+      STATE.papers2026Oral = results[11];
     });
   }
 
@@ -971,9 +986,102 @@ table.admin-table tr:last-child td{border-bottom:none;}
       (p.source_citation ? '<div class="chapter-meta">' + esc(p.source_citation) + '</div>' : '') +
       '<hr class="divider">' +
       navHtml +
-      blocksHtml;
+      blocksHtml +
+      renderPaper2026MockExam(p);
     pane.scrollTop = 0;
     document.querySelector('#view-papers2026 .content-pane').scrollTop = 0;
+    wirePaper2026MockExam();
+  }
+
+  function paper2026NN(p){ return p.id.replace(/^p/, ''); }
+
+  function papers2026QuizFor(p){
+    var nn = paper2026NN(p);
+    return STATE.papers2026Quiz.filter(function(q){ return q.chapter_id === 'papers2026-' + nn; });
+  }
+
+  function papers2026OralFor(p){
+    var nn = paper2026NN(p);
+    return STATE.papers2026Oral.filter(function(o){ return o.id === 'papers2026-oral-' + nn; });
+  }
+
+  function renderBulletText(text){
+    var lines = String(text || '').split('\n').filter(function(l){ return l.trim().length; });
+    return '<ul class="mock-oral-answer-list">' + lines.map(function(l){
+      var m = l.match(/^(\s*)-\s?(.*)$/);
+      var indent = m ? Math.floor(m[1].length / 2) : 0;
+      var t = m ? m[2] : l;
+      return '<li style="margin-left:' + (indent * 16) + 'px">' + inline(t) + '</li>';
+    }).join('') + '</ul>';
+  }
+
+  function renderPaper2026MockExam(p){
+    var quiz = papers2026QuizFor(p);
+    var oral = papers2026OralFor(p);
+    if(!quiz.length && !oral.length) return '';
+
+    var quizHtml = quiz.map(function(q, qi){
+      return '<div class="mock-quiz-q" data-qid="' + esc(q.id) + '" data-answer="' + q.answer_index + '">' +
+        '<div class="quiz-q" style="font-size:14.5px;margin-bottom:12px;">Q' + (qi+1) + '. ' + inline(q.question) + '</div>' +
+        '<div class="quiz-options">' +
+          q.options.map(function(opt, oi){
+            return '<button class="opt-btn" data-idx="' + oi + '"><span class="k">' +
+              String.fromCharCode(65+oi) + '</span><span>' + inline(opt) + '</span></button>';
+          }).join('') +
+        '</div>' +
+        '<div class="quiz-explain" hidden><span class="tag">解析</span>' + inline(q.explanation) + '</div>' +
+      '</div>';
+    }).join('');
+
+    var oralHtml = oral.map(function(o){
+      return '<div class="mock-oral-card">' +
+        (o.title ? '<div class="mock-oral-title">' + esc(o.title) + '</div>' : '') +
+        '<div class="mock-oral-scenario">' + inline(o.scenario) + '</div>' +
+        (o.sub_questions && o.sub_questions.length ?
+          '<ol class="mock-oral-subq">' + o.sub_questions.map(function(sq){
+            return '<li>' + inline(sq) + '</li>';
+          }).join('') + '</ol>' : '') +
+        '<button class="mock-oral-toggle btn btn-ghost">顯示參考答案</button>' +
+        '<div class="mock-oral-answer" hidden>' + renderBulletText(o.reference_answer) + '</div>' +
+      '</div>';
+    }).join('');
+
+    return '<hr class="divider">' +
+      '<div class="mock-exam-section">' +
+        (quizHtml ? '<h2 class="mock-exam-heading">模擬筆試（' + quiz.length + ' 題）</h2>' + quizHtml : '') +
+        (oralHtml ? '<h2 class="mock-exam-heading">模擬口試</h2>' + oralHtml : '') +
+      '</div>';
+  }
+
+  function wirePaper2026MockExam(){
+    document.querySelectorAll('.mock-quiz-q').forEach(function(card){
+      var answerIdx = parseInt(card.getAttribute('data-answer'), 10);
+      var opts = card.querySelectorAll('.opt-btn');
+      opts.forEach(function(btn){
+        btn.addEventListener('click', function(){
+          if(card.classList.contains('answered')) return;
+          card.classList.add('answered');
+          var chosen = parseInt(btn.getAttribute('data-idx'), 10);
+          opts.forEach(function(b){
+            b.disabled = true;
+            var idx = parseInt(b.getAttribute('data-idx'), 10);
+            if(idx === answerIdx) b.classList.add('correct');
+            else if(idx === chosen) b.classList.add('incorrect');
+          });
+          var exp = card.querySelector('.quiz-explain');
+          if(exp) exp.hidden = false;
+        });
+      });
+    });
+
+    document.querySelectorAll('.mock-oral-toggle').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var card = btn.closest('.mock-oral-card');
+        var ans = card.querySelector('.mock-oral-answer');
+        ans.hidden = !ans.hidden;
+        btn.textContent = ans.hidden ? '顯示參考答案' : '隱藏參考答案';
+      });
+    });
   }
 
   /* ---------- quiz tab ---------- */
