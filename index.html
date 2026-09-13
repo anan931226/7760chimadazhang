@@ -180,6 +180,8 @@ hr.content-divider{border:none;border-top:2px dashed var(--line);margin:40px 0;}
   background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);text-decoration:none;
 }
 .jump-nav a:hover{border-color:var(--ecg);color:var(--ecg);}
+.jump-nav a.jump-nav-mock{border-style:dashed;color:var(--spo2);}
+.jump-nav a.jump-nav-mock:hover{border-color:var(--spo2);color:var(--spo2);}
 
 #view-papers2026 table.block-table td{white-space:normal;}
 #view-papers2026 .block-h3{scroll-margin-top:16px;}
@@ -982,12 +984,14 @@ table.admin-table tr:last-child td{border-bottom:none;}
     if(!p){ pane.innerHTML = '<div class="empty-state">選擇左側文章開始閱讀</div>'; return; }
 
     var h3s = p.blocks.filter(function(b){ return b.type === 'h3'; });
-    var navHtml = '';
-    if(h3s.length){
-      navHtml = '<div class="jump-nav">' + h3s.map(function(b, i){
-        return '<a href="#p2026-h3-' + i + '">' + esc(b.text) + '</a>';
-      }).join('') + '</div>';
-    }
+    var quizCount = papers2026QuizFor(p).length;
+    var oralCount = papers2026OralFor(p).length;
+    var navLinks = h3s.map(function(b, i){
+      return '<a href="#p2026-h3-' + i + '">' + esc(b.text) + '</a>';
+    });
+    if(quizCount) navLinks.push('<a href="#p2026-mock-quiz" class="jump-nav-mock">模擬筆試</a>');
+    if(oralCount) navLinks.push('<a href="#p2026-mock-oral" class="jump-nav-mock">模擬口試</a>');
+    var navHtml = navLinks.length ? '<div class="jump-nav">' + navLinks.join('') + '</div>' : '';
 
     var h3count = -1;
     var blocksHtml = p.blocks.map(function(b){
@@ -1066,8 +1070,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
 
     return '<hr class="divider">' +
       '<div class="mock-exam-section">' +
-        (quizHtml ? '<h2 class="mock-exam-heading">模擬筆試（' + quiz.length + ' 題）</h2>' + quizHtml : '') +
-        (oralHtml ? '<h2 class="mock-exam-heading">模擬口試</h2>' + oralHtml : '') +
+        (quizHtml ? '<h2 class="mock-exam-heading" id="p2026-mock-quiz">模擬筆試（' + quiz.length + ' 題）</h2>' + quizHtml : '') +
+        (oralHtml ? '<h2 class="mock-exam-heading" id="p2026-mock-oral">模擬口試</h2>' + oralHtml : '') +
       '</div>';
   }
 
