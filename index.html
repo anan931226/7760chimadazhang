@@ -402,6 +402,10 @@ mark{background:var(--mark-bg);color:var(--ink);padding:1px 4px;border-radius:3p
   display:inline-block;font-size:10px;color:var(--spo2);
   border:1px solid color-mix(in srgb, var(--spo2) 45%, var(--panel));border-radius:3px;padding:2px 6px;
 }
+select.exam-year-tag{
+  appearance:none;-webkit-appearance:none;background:var(--panel);cursor:pointer;
+  font-family:var(--font-mono);
+}
 .exam-q{font-size:17px;color:var(--ink);margin:0 0 18px;text-wrap:balance;white-space:pre-wrap;}
 .exam-images{display:flex;flex-direction:column;gap:10px;margin:0 0 18px;}
 .exam-images img{max-width:100%;border-radius:var(--radius-ctl);border:1px solid var(--line);}
@@ -1513,7 +1517,12 @@ table.admin-table tr:last-child td{border-bottom:none;}
       '<div class="exam-live">' +
         '<div class="exam-progress">' +
           '<span class="idx mono">第 ' + (examBrowse.idx+1) + ' / ' + examBrowse.list.length + ' 題</span>' +
-          '<span class="exam-year-tag mono">' + q.year + ' 年 第 ' + q.question_no + ' 題</span>' +
+          '<select class="exam-year-tag mono" id="exam-jump" title="跳到指定題目">' +
+            examBrowse.list.map(function(item, i){
+              return '<option value="' + i + '"' + (i === examBrowse.idx ? ' selected' : '') + '>' +
+                item.year + ' 年 第 ' + item.question_no + ' 題</option>';
+            }).join('') +
+          '</select>' +
         '</div>' +
         '<div class="exam-q">' + esc(q.question) +
           '<button class="fav-star' + (isFavorited(q.id) ? ' active' : '') + '" id="exam-fav" title="收藏這題">&#9733;</button>' +
@@ -1540,6 +1549,11 @@ table.admin-table tr:last-child td{border-bottom:none;}
       optWrap.appendChild(b);
     });
 
+    document.getElementById('exam-jump').addEventListener('change', function(){
+      examBrowse.idx = parseInt(this.value, 10);
+      examBrowse.answered = false;
+      renderExamLive();
+    });
     document.getElementById('exam-prev').addEventListener('click', function(){
       if(examBrowse.idx > 0){ examBrowse.idx--; examBrowse.answered = false; renderExamLive(); }
     });
