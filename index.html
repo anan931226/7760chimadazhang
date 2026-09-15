@@ -406,6 +406,7 @@ select.exam-year-tag{
   appearance:none;-webkit-appearance:none;background:var(--panel);cursor:pointer;
   font-family:var(--font-mono);
 }
+.exam-jump-hint{font-size:11px;color:var(--ink-faint);text-align:right;margin:6px 0 14px;}
 .exam-q{font-size:17px;color:var(--ink);margin:0 0 18px;text-wrap:balance;white-space:pre-wrap;}
 .exam-images{display:flex;flex-direction:column;gap:10px;margin:0 0 18px;}
 .exam-images img{max-width:100%;border-radius:var(--radius-ctl);border:1px solid var(--line);}
@@ -1524,6 +1525,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
             }).join('') +
           '</select>' +
         '</div>' +
+        '<div class="exam-jump-hint">點上方選單可直接跳到指定題目</div>' +
         '<div class="exam-q">' + esc(q.question) +
           '<button class="fav-star' + (isFavorited(q.id) ? ' active' : '') + '" id="exam-fav" title="收藏這題">&#9733;</button>' +
         '</div>' +
