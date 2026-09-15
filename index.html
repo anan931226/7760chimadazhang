@@ -546,7 +546,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
   var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92ZXV1a21sZm1kZGFuend1d2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2NDA4ODIsImV4cCI6MjEwMzIxNjg4Mn0.eazZ272x7UsLcD1YvfMI19SB9i5B6XDQfV93H5c2vsQ";
 
   /* ================= data & state ================= */
-  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [], examAttempts: [], oralQuestions: [], paperNotes2026: [], papers2026Quiz: [], papers2026Oral: [] };
+  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [], examAttempts: [], oralQuestions: [], paperNotes2026: [], papers2026Quiz: [], papers2026Oral: [], papers2026Attempts: [] };
   var ADMIN_PASSPHRASE = "cmh7760";
   var EMPLOYEE_ID_KEY = "mazhuan_employee_id";
   var ADMIN_SESSION_KEY = "mazhuan_admin_ok";
@@ -580,9 +580,13 @@ table.admin-table tr:last-child td{border-bottom:none;}
     el.classList.toggle('unset', !id);
   }
 
-  function allChapters(){ return STATE.chapters; }
+  /* pseudo-chapters (id "papers2026-NN") back papers2026_quiz's 落點分析
+     grouping but must stay out of the real 筆記/新增內容 chapter browsing UI
+     -- allChapters() filters them out, findChapter() (used for 落點分析 and
+     the 錯題/收藏 chapter-tag lookup) searches the full unfiltered list. */
+  function allChapters(){ return STATE.chapters.filter(function(c){ return c.id.indexOf('papers2026-') !== 0; }); }
   function allQuestions(){ return STATE.questions; }
-  function findChapter(id){ return allChapters().filter(function(c){ return c.id === id; })[0]; }
+  function findChapter(id){ return STATE.chapters.filter(function(c){ return c.id === id; })[0]; }
 
   /* ================= Supabase (PostgREST) ================= */
   function sbHeaders(extra){
@@ -649,7 +653,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
       sbSelect("oral_exam_questions"),
       sbSelect("paper_notes_2026").catch(function(){ return []; }), // table may not exist yet on old deploys
       sbSelect("papers2026_quiz").catch(function(){ return []; }),
-      sbSelect("papers2026_oral").catch(function(){ return []; })
+      sbSelect("papers2026_oral").catch(function(){ return []; }),
+      sbSelect("papers2026_attempts").catch(function(){ return []; })
     ]).then(function(results){
       STATE.chapters = results[0];
       STATE.questions = results[1];
@@ -663,6 +668,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
       STATE.paperNotes2026 = results[9];
       STATE.papers2026Quiz = results[10];
       STATE.papers2026Oral = results[11];
+      STATE.papers2026Attempts = results[12];
     });
   }
 
@@ -825,7 +831,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     if(!id) return false;
     return !!favoriteRow(id, questionId);
   }
-  function toggleFavorite(questionId, onDone){
+  function toggleFavorite(questionId, source, onDone){
     var id = ensureEmployeeId();
     if(!id) return;
     var existing = favoriteRow(id, questionId);
@@ -836,7 +842,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
           if(onDone) onDone();
         });
     } else {
-      var row = { id: uid('fav'), employee_id: id, question_id: questionId };
+      var row = { id: uid('fav'), employee_id: id, question_id: questionId, source: source || 'chapter' };
       sbInsert("favorites", row).then(function(saved){
         STATE.favorites.push(saved);
         if(onDone) onDone();
@@ -849,11 +855,21 @@ table.admin-table tr:last-child td{border-bottom:none;}
     var row = { id: uid('eatt'), employee_id: id, question_id: q.id, selected_key: pickedKey, is_correct: correct };
     sbInsert("exam_attempts", row).then(function(saved){ STATE.examAttempts.push(saved); });
   }
+  function recordPapers2026Attempt(q, selectedIndex, correct){
+    var id = getEmployeeId();
+    if(!id) return;
+    var row = { id: uid('p26att'), employee_id: id, question_id: q.id, selected_index: selectedIndex, is_correct: correct };
+    sbInsert("papers2026_attempts", row).then(function(saved){ STATE.papers2026Attempts.push(saved); });
+  }
   function recordAttempt(q, selectedIndex, correct){
     var id = getEmployeeId();
     if(!id) return;
     if(q.isExam){
       recordExamAttempt(q, String.fromCharCode(65 + selectedIndex), correct);
+      return;
+    }
+    if(q.isPapers2026){
+      recordPapers2026Attempt(q, selectedIndex, correct);
       return;
     }
     var row = {
@@ -862,7 +878,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     };
     sbInsert("quiz_attempts", row).then(function(saved){ STATE.attempts.push(saved); });
   }
-  function allAttempts(){ return STATE.attempts.concat(STATE.examAttempts); }
+  function allAttempts(){ return STATE.attempts.concat(STATE.examAttempts).concat(STATE.papers2026Attempts); }
   function latestAttemptsByQuestion(employeeId, sinceIso){
     var mine = allAttempts().filter(function(a){
       return a.employee_id === employeeId && (!sinceIso || a.answered_at >= sinceIso);
@@ -1185,7 +1201,9 @@ table.admin-table tr:last-child td{border-bottom:none;}
 
     var quizHtml = quiz.map(function(q, qi){
       return '<div class="mock-quiz-q" data-qid="' + esc(q.id) + '" data-answer="' + q.answer_index + '">' +
-        '<div class="quiz-q" style="font-size:14.5px;margin-bottom:12px;">Q' + (qi+1) + '. ' + inline(q.question) + '</div>' +
+        '<div class="quiz-q" style="font-size:14.5px;margin-bottom:12px;">Q' + (qi+1) + '. ' + inline(q.question) +
+          '<button class="fav-star' + (isFavorited(q.id) ? ' active' : '') + '" title="收藏這題">&#9733;</button>' +
+        '</div>' +
         '<div class="quiz-options">' +
           q.options.map(function(opt, oi){
             return '<button class="opt-btn" data-idx="' + oi + '"><span class="k">' +
@@ -1216,10 +1234,35 @@ table.admin-table tr:last-child td{border-bottom:none;}
       '</div>';
   }
 
+  /* normalize a papers2026_quiz row into the shape renderMine/allAttempts
+     expect, so its answers/favorites sit in the same 錯題/收藏/落點分析 as
+     chapter and exam questions. chapter_id points at a real pseudo-chapter
+     row ("papers2026-NN", one per paper) seeded alongside the real chapters,
+     so 落點分析's ordinary chapterId grouping needs no special-casing. */
+  function papers2026ToQuizShape(q){
+    return {
+      id: q.id,
+      chapterId: q.chapter_id,
+      question: q.question,
+      options: q.options,
+      answerIndex: q.answer_index,
+      explanation: q.explanation,
+      isPapers2026: true
+    };
+  }
+
   function wirePaper2026MockExam(){
     document.querySelectorAll('.mock-quiz-q').forEach(function(card){
+      var qid = card.getAttribute('data-qid');
+      var q = STATE.papers2026Quiz.filter(function(x){ return x.id === qid; })[0];
       var answerIdx = parseInt(card.getAttribute('data-answer'), 10);
       var opts = card.querySelectorAll('.opt-btn');
+      var starBtn = card.querySelector('.fav-star');
+      if(starBtn){
+        starBtn.addEventListener('click', function(){
+          toggleFavorite(qid, 'papers2026', function(){ starBtn.classList.toggle('active', isFavorited(qid)); });
+        });
+      }
       opts.forEach(function(btn){
         btn.addEventListener('click', function(){
           if(card.classList.contains('answered')) return;
@@ -1233,6 +1276,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
           });
           var exp = card.querySelector('.quiz-explain');
           if(exp) exp.hidden = false;
+          if(q) recordAttempt(papers2026ToQuizShape(q), chosen, chosen === answerIdx);
         });
       });
     });
@@ -1334,7 +1378,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
 
     document.getElementById('quiz-fav').addEventListener('click', function(){
       var btn = this;
-      toggleFavorite(q.id, function(){ btn.classList.toggle('active', isFavorited(q.id)); });
+      toggleFavorite(q.id, 'chapter', function(){ btn.classList.toggle('active', isFavorited(q.id)); });
     });
 
     var optWrap = document.getElementById('quiz-options');
@@ -1471,7 +1515,9 @@ table.admin-table tr:last-child td{border-bottom:none;}
           '<span class="idx mono">第 ' + (examBrowse.idx+1) + ' / ' + examBrowse.list.length + ' 題</span>' +
           '<span class="exam-year-tag mono">' + q.year + ' 年 第 ' + q.question_no + ' 題</span>' +
         '</div>' +
-        '<div class="exam-q">' + esc(q.question) + '</div>' +
+        '<div class="exam-q">' + esc(q.question) +
+          '<button class="fav-star' + (isFavorited(q.id) ? ' active' : '') + '" id="exam-fav" title="收藏這題">&#9733;</button>' +
+        '</div>' +
         (q.has_image && q.images && q.images.length ?
           '<div class="exam-images">' + q.images.map(function(p){
             return '<img src="' + esc(p) + '" alt="題目附圖" loading="lazy">';
@@ -1503,6 +1549,10 @@ table.admin-table tr:last-child td{border-bottom:none;}
     document.getElementById('exam-back').addEventListener('click', function(){
       examBrowse = null;
       renderExamSetup();
+    });
+    document.getElementById('exam-fav').addEventListener('click', function(){
+      var btn = document.getElementById('exam-fav');
+      toggleFavorite(q.id, 'exam', function(){ btn.classList.toggle('active', isFavorited(q.id)); });
     });
 
     if(examBrowse.answered){ examShowResult(q); }
@@ -1678,6 +1728,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     var qById = {};
     allQuestions().forEach(function(q){ qById[q.id] = q; });
     STATE.examQuestions.forEach(function(q){ qById[q.id] = examToQuizShape(q); });
+    STATE.papers2026Quiz.forEach(function(q){ qById[q.id] = papers2026ToQuizShape(q); });
 
     var wrongQuestions = Object.keys(latestAll)
       .filter(function(qid){ return latestAll[qid].is_correct === false; })
