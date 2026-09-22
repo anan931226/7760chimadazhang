@@ -1639,7 +1639,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
   }
 
   /* ---------- exam (歷屆考古題) tab ---------- */
-  var examBrowse = null; // {year:"__all__"|2020..2025, list:[], idx:0, answered:false}
+  var examBrowse = null; // newBrowse() 產出的物件；null 表示停在設定頁
   /* set when the 考古題 view was entered by jumping from a 版本落差筆記 entry, so
      the question can offer a way back to the note it came from instead of
      stranding the reader in the question browser. Holds the entry id so the
@@ -1814,7 +1814,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
         var pool = examPoolFor(y);
         if(!pool.length) return;
         vgnReturn = null; // a fresh browse must not offer a stale "back to the note"
-        examBrowse = newBrowse(pool, 0, 0, y);
+        examBrowse = newBrowse(pool, 0, 0);
         saveBrowse();
         renderExamLive();
       });
@@ -1826,10 +1826,12 @@ table.admin-table tr:last-child td{border-bottom:none;}
      為鍵的表上（最後一次作答為準），重看同一題才不會重複計分。送分題不列入分母
      也不列入分子——它本來就不寫 exam_attempts。
      picked 另外記，讓跳回已作答過的題目時能還原當時選的選項與對錯標示。 */
-  function newBrowse(pool, idx, score, year){
+  /* 這裡刻意不留「這批是哪個範圍」的欄位。續作是靠 question_ids 還原（三個題庫
+     混在一起查），續作卡片的題庫名稱是從 pool[0] 反推的，沒有任何地方需要範圍
+     key；留一個沒人讀的欄位只會讓下一個人以為可以拿它來還原範圍。 */
+  function newBrowse(pool, idx, score){
     var start = Math.min(idx || 0, Math.max(pool.length - 1, 0));
     return {
-      year: year || null,
       list: pool,
       idx: start,
       answered: false,
@@ -2208,7 +2210,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     vgnReturn = entryId || null;
     /* 從版本落差筆記跳過來是查一題，不是開一輪；標成 ephemeral 才不會把使用者
        原本存著的題目瀏覽進度洗掉。 */
-    examBrowse = newBrowse(pool, idx, 0, String(year));
+    examBrowse = newBrowse(pool, idx, 0);
     examBrowse.ephemeral = true;
     renderExamLive();
   }
