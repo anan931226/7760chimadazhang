@@ -1155,13 +1155,92 @@ table.admin-table tr:last-child td{border-bottom:none;}
     var pane = document.getElementById('content-inner');
     var c = findChapter(currentChapterId);
     if(!c){ pane.innerHTML = '<div class="empty-state">選擇左側章節開始閱讀</div>'; return; }
+    var qc = questionCountFor(c.id);
     pane.innerHTML =
       '<h1 class="chapter-title">' + esc(c.title) + '</h1>' +
-      (questionCountFor(c.id) ? '<div class="chapter-meta">' + questionCountFor(c.id) + ' 題測驗題</div>' : '') +
+      (qc ? '<div class="chapter-meta"><a href="#ch-mock-quiz">' + qc + ' 題章節測驗 &#8595;</a></div>' : '') +
       '<hr class="divider">' +
-      renderBlocks(c.blocks);
+      renderBlocks(c.blocks) +
+      renderChapterMockExam(c);
     pane.scrollTop = 0;
     document.querySelector('.content-pane').scrollTop = 0;
+    wireChapterMockExam();
+  }
+
+  /* ---------- 共用：附在筆記底下的模擬筆試卡片 ----------
+     章節筆記題與「2026麻專18篇」共用同一份 markup / CSS。
+     傳入的題目必須已正規化成 {id, question, options, answerIndex, explanation}
+     （papers2026 的 snake_case 列請先過 papers2026ToQuizShape）。 */
+  function mockQuizCardsHtml(list){
+    return list.map(function(q, qi){
+      return '<div class="mock-quiz-q" data-qid="' + esc(q.id) + '" data-answer="' + q.answerIndex + '">' +
+        '<div class="quiz-q" style="font-size:14.5px;margin-bottom:12px;">Q' + (qi+1) + '. ' + inline(q.question) +
+          '<button class="fav-star' + (isFavorited(q.id) ? ' active' : '') + '" title="收藏這題">&#9733;</button>' +
+        '</div>' +
+        '<div class="quiz-options">' +
+          q.options.map(function(opt, oi){
+            return '<button class="opt-btn" data-idx="' + oi + '"><span class="k">' +
+              String.fromCharCode(65+oi) + '</span><span>' + inline(opt) + '</span></button>';
+          }).join('') +
+        '</div>' +
+        '<div class="quiz-explain" hidden><span class="tag">解析</span>' + inline(q.explanation) + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  /* scope 一定要指定（'#view-read' / '#view-papers2026'）：兩個分頁的 DOM
+     同時存在，全域 querySelectorAll('.mock-quiz-q') 會把另一個分頁的卡片
+     也綁上錯誤的 source / 題庫。 */
+  function wireMockQuizCards(scope, lookup, source){
+    document.querySelectorAll(scope + ' .mock-quiz-q').forEach(function(card){
+      var qid = card.getAttribute('data-qid');
+      var q = lookup(qid);
+      var answerIdx = parseInt(card.getAttribute('data-answer'), 10);
+      var opts = card.querySelectorAll('.opt-btn');
+      var starBtn = card.querySelector('.fav-star');
+      if(starBtn){
+        starBtn.addEventListener('click', function(){
+          toggleFavorite(qid, source, function(){ starBtn.classList.toggle('active', isFavorited(qid)); });
+        });
+      }
+      opts.forEach(function(btn){
+        btn.addEventListener('click', function(){
+          if(card.classList.contains('answered')) return;
+          card.classList.add('answered');
+          var chosen = parseInt(btn.getAttribute('data-idx'), 10);
+          opts.forEach(function(b){
+            b.disabled = true;
+            var idx = parseInt(b.getAttribute('data-idx'), 10);
+            if(idx === answerIdx) b.classList.add('correct');
+            else if(idx === chosen) b.classList.add('incorrect');
+          });
+          var exp = card.querySelector('.quiz-explain');
+          if(exp) exp.hidden = false;
+          if(q) recordAttempt(q, chosen, chosen === answerIdx);
+        });
+      });
+    });
+  }
+
+  /* ---------- 章節筆記底下的章節測驗 ---------- */
+  function chapterQuizFor(chapterId){
+    return allQuestions().filter(function(q){ return q.chapterId === chapterId; });
+  }
+
+  function renderChapterMockExam(c){
+    var list = chapterQuizFor(c.id);
+    if(!list.length) return '';
+    return '<hr class="divider">' +
+      '<div class="mock-exam-section">' +
+        '<h2 class="mock-exam-heading" id="ch-mock-quiz">章節測驗（' + list.length + ' 題）</h2>' +
+        mockQuizCardsHtml(list) +
+      '</div>';
+  }
+
+  function wireChapterMockExam(){
+    wireMockQuizCards('#view-read', function(qid){
+      return allQuestions().filter(function(x){ return x.id === qid; })[0];
+    }, 'chapter');
   }
 
   /* ---------- 2026麻專18篇 tab ---------- */
@@ -1284,20 +1363,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     var oral = papers2026OralFor(p);
     if(!quiz.length && !oral.length) return '';
 
-    var quizHtml = quiz.map(function(q, qi){
-      return '<div class="mock-quiz-q" data-qid="' + esc(q.id) + '" data-answer="' + q.answer_index + '">' +
-        '<div class="quiz-q" style="font-size:14.5px;margin-bottom:12px;">Q' + (qi+1) + '. ' + inline(q.question) +
-          '<button class="fav-star' + (isFavorited(q.id) ? ' active' : '') + '" title="收藏這題">&#9733;</button>' +
-        '</div>' +
-        '<div class="quiz-options">' +
-          q.options.map(function(opt, oi){
-            return '<button class="opt-btn" data-idx="' + oi + '"><span class="k">' +
-              String.fromCharCode(65+oi) + '</span><span>' + inline(opt) + '</span></button>';
-          }).join('') +
-        '</div>' +
-        '<div class="quiz-explain" hidden><span class="tag">解析</span>' + inline(q.explanation) + '</div>' +
-      '</div>';
-    }).join('');
+    var quizHtml = mockQuizCardsHtml(quiz.map(papers2026ToQuizShape));
 
     var oralHtml = oral.map(function(o){
       return '<div class="mock-oral-card">' +
@@ -1337,36 +1403,12 @@ table.admin-table tr:last-child td{border-bottom:none;}
   }
 
   function wirePaper2026MockExam(){
-    document.querySelectorAll('.mock-quiz-q').forEach(function(card){
-      var qid = card.getAttribute('data-qid');
+    wireMockQuizCards('#view-papers2026', function(qid){
       var q = STATE.papers2026Quiz.filter(function(x){ return x.id === qid; })[0];
-      var answerIdx = parseInt(card.getAttribute('data-answer'), 10);
-      var opts = card.querySelectorAll('.opt-btn');
-      var starBtn = card.querySelector('.fav-star');
-      if(starBtn){
-        starBtn.addEventListener('click', function(){
-          toggleFavorite(qid, 'papers2026', function(){ starBtn.classList.toggle('active', isFavorited(qid)); });
-        });
-      }
-      opts.forEach(function(btn){
-        btn.addEventListener('click', function(){
-          if(card.classList.contains('answered')) return;
-          card.classList.add('answered');
-          var chosen = parseInt(btn.getAttribute('data-idx'), 10);
-          opts.forEach(function(b){
-            b.disabled = true;
-            var idx = parseInt(b.getAttribute('data-idx'), 10);
-            if(idx === answerIdx) b.classList.add('correct');
-            else if(idx === chosen) b.classList.add('incorrect');
-          });
-          var exp = card.querySelector('.quiz-explain');
-          if(exp) exp.hidden = false;
-          if(q) recordAttempt(papers2026ToQuizShape(q), chosen, chosen === answerIdx);
-        });
-      });
-    });
+      return q ? papers2026ToQuizShape(q) : null;
+    }, 'papers2026');
 
-    document.querySelectorAll('.mock-oral-toggle').forEach(function(btn){
+    document.querySelectorAll('#view-papers2026 .mock-oral-toggle').forEach(function(btn){
       btn.addEventListener('click', function(){
         var card = btn.closest('.mock-oral-card');
         var ans = card.querySelector('.mock-oral-answer');
@@ -1405,6 +1447,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
           '<select id="quiz-chapter"><option value="__all__">全部章節混合（' + allQuestions().length + ' 題）</option>' + options + '</select>' +
           '<button class="btn btn-primary" id="quiz-start">開始新測驗</button>'
         : '') +
+        '<p class="quiz-setup-hint">單一章節的題目現在也直接附在「讀筆記」該篇筆記的最後面（章節測驗），' +
+        '讀完馬上就能作答；這裡保留的是跨章節連續作答、計分與續做上次進度的模式。</p>' +
       '</div>';
 
     if(session){
@@ -1453,7 +1497,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
       '<div class="quiz-live">' +
         '<div class="quiz-progress"><span class="idx mono">第 ' + (quiz.idx+1) + ' / ' + quiz.questions.length + ' 題</span><span class="score mono">' + quiz.score + '</span></div>' +
         (ch ? '<div class="quiz-chapter-tag">' + esc(ch.title) + '</div>' : '') +
-        '<div class="quiz-q">' + esc(q.question) +
+        '<div class="quiz-q">' + inline(q.question) +
           '<button class="fav-star' + (isFavorited(q.id) ? ' active' : '') + '" id="quiz-fav" title="收藏這題">&#9733;</button>' +
         '</div>' +
         '<div class="quiz-options" id="quiz-options"></div>' +
@@ -1470,7 +1514,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     q.options.forEach(function(optText, idx){
       var b = document.createElement('button');
       b.className = 'opt-btn';
-      b.innerHTML = '<span class="k mono">' + String.fromCharCode(65+idx) + '</span><span>' + esc(optText) + '</span>';
+      b.innerHTML = '<span class="k mono">' + String.fromCharCode(65+idx) + '</span><span>' + inline(optText) + '</span>';
       b.addEventListener('click', function(){ answerQuiz(idx); });
       optWrap.appendChild(b);
     });
@@ -1497,7 +1541,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     if(idx === correct) quiz.score++;
     recordAttempt(q, idx, idx === correct);
     document.getElementById('quiz-explain-slot').innerHTML =
-      '<div class="quiz-explain"><span class="tag">解析</span>' + esc(q.explanation || '') + '</div>';
+      '<div class="quiz-explain"><span class="tag">解析</span>' + inline(q.explanation || '') + '</div>';
     document.getElementById('quiz-next').disabled = false;
   }
 
