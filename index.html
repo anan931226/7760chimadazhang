@@ -394,6 +394,7 @@ mark{background:var(--mark-bg);color:var(--ink);padding:1px 4px;border-radius:3p
 .exam-wrap{max-width:640px;width:100%;padding:40px 24px 100px;margin:0 auto;}
 .exam-setup{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-card);padding:24px;}
 .exam-setup h2{font-family:var(--font-display);font-size:20px;margin:0 0 14px;}
+.exam-scope-hint{margin:0 0 18px;font-size:12.5px;line-height:1.7;color:var(--ink-faint);}
 .exam-setup label{display:block;font-family:var(--font-mono);font-size:11px;color:var(--ink-dim);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
 .exam-setup select{
   width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
@@ -1578,20 +1579,86 @@ table.admin-table tr:last-child td{border-bottom:none;}
     });
   }
 
+  /* 題庫範圍的值編碼成 "<來源>:<鍵>"，鍵是年度／章節 id／篇 id，或 __all__。
+     三個來源共用同一個瀏覽器，所以下拉選單是同一個，用 optgroup 分組。 */
+  function examScopeOptions(){
+    var out = '';
+    var years = examYears();
+    out += '<optgroup label="歷屆考古題">' +
+      '<option value="exam:__all__">全部年度混合（' + STATE.examQuestions.length + ' 題）</option>' +
+      years.map(function(y){
+        return '<option value="exam:' + y.year + '">' + y.year + ' 年（' + y.count + ' 題）</option>';
+      }).join('') + '</optgroup>';
+
+    var chaptersWithQ = allChapters().filter(function(c){ return questionCountFor(c.id) > 0; })
+      .sort(function(a, b){ return (a.num || 999) - (b.num || 999); });
+    if(chaptersWithQ.length){
+      out += '<optgroup label="章節筆記題庫">' +
+        '<option value="chapter:__all__">全部章節混合（' + allQuestions().length + ' 題）</option>' +
+        chaptersWithQ.map(function(c){
+          return '<option value="chapter:' + esc(c.id) + '">' + esc(c.title) + '（' + questionCountFor(c.id) + ' 題）</option>';
+        }).join('') + '</optgroup>';
+    }
+
+    var p26 = {};
+    STATE.papers2026Quiz.forEach(function(q){ p26[q.chapter_id] = (p26[q.chapter_id] || 0) + 1; });
+    var p26Ids = Object.keys(p26).sort();
+    if(p26Ids.length){
+      out += '<optgroup label="2026麻專18篇">' +
+        '<option value="p26:__all__">全部篇章混合（' + STATE.papers2026Quiz.length + ' 題）</option>' +
+        p26Ids.map(function(cid){
+          var ch = findChapter(cid);
+          return '<option value="p26:' + esc(cid) + '">' + esc(ch ? ch.title : cid) + '（' + p26[cid] + ' 題）</option>';
+        }).join('') + '</optgroup>';
+    }
+    return out;
+  }
+
+  function examPoolFor(value){
+    var sep = value.indexOf(':');
+    var kind = value.slice(0, sep), key = value.slice(sep + 1);
+
+    if(kind === 'chapter'){
+      var chOrder = {};
+      STATE.chapters.forEach(function(c){ chOrder[c.id] = (c.num == null ? 999 : c.num); });
+      var qs = (key === '__all__' ? allQuestions()
+                                  : allQuestions().filter(function(q){ return q.chapterId === key; })).slice();
+      qs.sort(function(a, b){ return (chOrder[a.chapterId] || 999) - (chOrder[b.chapterId] || 999); });
+      return qs.map(function(q){
+        var ch = findChapter(q.chapterId);
+        return quizToExamShape(q, 'chapter', ch ? ch.title : '章節題');
+      });
+    }
+
+    if(kind === 'p26'){
+      var rows = (key === '__all__' ? STATE.papers2026Quiz
+                                    : STATE.papers2026Quiz.filter(function(q){ return q.chapter_id === key; })).slice();
+      rows.sort(function(a, b){ return String(a.chapter_id).localeCompare(String(b.chapter_id)); });
+      return rows.map(function(r){
+        var ch = findChapter(r.chapter_id);
+        return quizToExamShape(papers2026ToQuizShape(r), 'papers2026', ch ? ch.title : r.chapter_id);
+      });
+    }
+
+    var pool = (key === '__all__' ? STATE.examQuestions.slice()
+                                  : STATE.examQuestions.filter(function(q){ return String(q.year) === key; }));
+    pool.sort(function(a, b){ return a.year - b.year || a.question_no - b.question_no; });
+    return pool;
+  }
+
   function renderExamSetup(){
     var wrap = document.getElementById('exam-wrap');
-    var years = examYears();
     var total = STATE.examQuestions.length;
-    var options = years.map(function(y){
-      return '<option value="' + y.year + '">' + y.year + ' 年（' + y.count + ' 題）</option>';
-    }).join('');
+    var options = examScopeOptions();
 
     wrap.innerHTML =
       '<div class="exam-setup">' +
-        '<h2>歷屆考古題</h2>' +
+        '<h2>題目瀏覽</h2>' +
+        '<p class="exam-scope-hint">歷屆考古題、章節筆記題庫、2026麻專18篇 三個題庫共用這個瀏覽器，' +
+        '在下面選要看哪一批。作答紀錄一律進「我的紀錄」的錯題、收藏與落點分析。</p>' +
         (total ?
-          '<label>選擇年度</label>' +
-          '<select id="exam-year"><option value="__all__">全部年度混合（' + total + ' 題）</option>' + options + '</select>' +
+          '<label>題庫範圍</label>' +
+          '<select id="exam-year">' + options + '</select>' +
           '<button class="btn btn-primary" id="exam-start">開始瀏覽</button>'
         : '<div class="empty-state" style="padding:20px 0;">考古題資料還沒上架。</div>') +
         (STATE.versionGapNotes.length ?
@@ -1609,8 +1676,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
     if(startBtn){
       startBtn.addEventListener('click', function(){
         var y = document.getElementById('exam-year').value;
-        var pool = y === '__all__' ? STATE.examQuestions.slice() : STATE.examQuestions.filter(function(q){ return String(q.year) === y; });
-        pool.sort(function(a,b){ return a.year - b.year || a.question_no - b.question_no; });
+        var pool = examPoolFor(y);
+        if(!pool.length) return;
         vgnReturn = null; // a fresh browse must not offer a stale "back to the note"
         examBrowse = { year: y, list: pool, idx: 0, answered: false };
         renderExamLive();
@@ -1647,6 +1714,41 @@ table.admin-table tr:last-child td{border-bottom:none;}
     };
   }
 
+  /* ---------- 題庫範圍：三個題庫共用考古題那個瀏覽器 ----------
+     轉換方向是「quiz 形狀 -> exam 形狀」，不是反過來。考古題的 answer 是字串，
+     複選送分題會是 "AB" 這種多個字母；examToQuizShape() 只取第一個字母，所以
+     若把考古題轉成 quiz 形狀丟進來，複選題的其餘正確選項會被標成錯的。章節題
+     與 18 篇都是單選、沒有附圖、沒有送分題，往 exam 形狀轉是無損的。
+
+     _orig 留著原本的 quiz 形狀物件：作答時交給 recordAttempt() 依 isExam /
+     isPapers2026 路由到正確的 attempts 表，收藏也用 _source 標對來源。 */
+  function quizToExamShape(q, source, label){
+    var options = {};
+    (q.options || []).forEach(function(t, i){ options[String.fromCharCode(65 + i)] = t; });
+    return {
+      id: q.id,
+      question: q.question,
+      options: options,
+      answer: q.answerIndex >= 0 ? String.fromCharCode(65 + q.answerIndex) : null,
+      explanation: q.explanation,
+      void: false,
+      has_image: false,
+      images: [],
+      explanation_images: [],
+      chapterId: q.chapterId,
+      _source: source,
+      _label: label,
+      _orig: q
+    };
+  }
+
+  /* 跳題選單的標籤。考古題用年度題號，另外兩個題庫沒有年度題號，用序號加來源
+     篇名（章名／論文篇名），否則 382 個選項會全部長得一樣。 */
+  function browseLabel(item, i){
+    if(item._label) return (i + 1) + '. ' + item._label;
+    return item.year + ' 年 第 ' + item.question_no + ' 題';
+  }
+
   function examExplainImages(q){
     var imgs = q.explanation_images;
     if(!imgs || !imgs.length) return '';
@@ -1665,10 +1767,14 @@ table.admin-table tr:last-child td{border-bottom:none;}
         '<div class="exam-void-badge">本題送分（所有選項皆列為正確）</div>' :
         '<div class="exam-answer-tag mono">正確答案：' + esc(q.answer || '—') + '</div>') +
       (q.reference ? '<div class="exam-ref mono">' + esc(q.reference) + '</div>' : '') +
-      (q.explanation ? '<div class="exam-explain"><span class="tag">詳解</span><div class="exam-explain-body">' + esc(q.explanation) + '</div></div>' :
+      /* 章節題與 18 篇的詳解寫的是筆記體（含 ~~ 這類標記），要走 inline()；
+         考古題的詳解是原文照登，維持 esc()。 */
+      (q.explanation ? '<div class="exam-explain"><span class="tag">詳解</span><div class="exam-explain-body">' +
+          (q._source ? inline(q.explanation) : esc(q.explanation)) + '</div></div>' :
         '<div class="exam-explain exam-explain-empty">本題原始資料沒有留下詳解文字。</div>') +
       examExplainImages(q) +
-      versionGapInline(q);
+      /* 版本落差筆記是用年度＋題號對到考古題的，其他題庫沒有這兩個欄位 */
+      (q._source ? '' : versionGapInline(q));
   }
 
   /* ================= 版本落差筆記 =================
@@ -1939,12 +2045,12 @@ table.admin-table tr:last-child td{border-bottom:none;}
           '<select class="exam-year-tag mono" id="exam-jump" title="跳到指定題目">' +
             examBrowse.list.map(function(item, i){
               return '<option value="' + i + '"' + (i === examBrowse.idx ? ' selected' : '') + '>' +
-                item.year + ' 年 第 ' + item.question_no + ' 題</option>';
+                esc(browseLabel(item, i)) + '</option>';
             }).join('') +
           '</select>' +
         '</div>' +
         '<div class="exam-jump-hint">點上方選單可直接跳到指定題目</div>' +
-        '<div class="exam-q">' + esc(q.question) +
+        '<div class="exam-q">' + (q._source ? inline(q.question) : esc(q.question)) +
           '<button class="fav-star' + (isFavorited(q.id) ? ' active' : '') + '" id="exam-fav" title="收藏這題">&#9733;</button>' +
         '</div>' +
         (q.has_image && q.images && q.images.length ?
@@ -1965,7 +2071,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
     keys.forEach(function(k){
       var b = document.createElement('button');
       b.className = 'opt-btn';
-      b.innerHTML = '<span class="k mono">' + k + '</span><span>' + esc(q.options[k]) + '</span>';
+      b.innerHTML = '<span class="k mono">' + k + '</span><span>' +
+        (q._source ? inline(q.options[k]) : esc(q.options[k])) + '</span>';
       b.addEventListener('click', function(){ examAnswerPick(k); });
       optWrap.appendChild(b);
     });
@@ -1995,7 +2102,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     });
     document.getElementById('exam-fav').addEventListener('click', function(){
       var btn = document.getElementById('exam-fav');
-      toggleFavorite(q.id, 'exam', function(){ btn.classList.toggle('active', isFavorited(q.id)); });
+      toggleFavorite(q.id, q._source || 'exam', function(){ btn.classList.toggle('active', isFavorited(q.id)); });
     });
 
     if(examBrowse.answered){ examShowResult(q); }
@@ -2007,7 +2114,14 @@ table.admin-table tr:last-child td{border-bottom:none;}
     var q = examBrowse.list[examBrowse.idx];
     if(!q.void){
       var correct = !!(q.answer && q.answer.indexOf(picked) !== -1);
-      recordExamAttempt(q, picked, correct);
+      if(q._source){
+        /* 章節題與 18 篇要記進各自的 attempts 表，recordAttempt() 會依 _orig 上的
+           isPapers2026 旗標路由；考古題維持原本直接寫 exam_attempts 的路徑，
+           連送出的 selected_key 都不變。 */
+        recordAttempt(q._orig, examOptionKeys(q).indexOf(picked), correct);
+      } else {
+        recordExamAttempt(q, picked, correct);
+      }
     }
     examShowResult(q, picked);
   }
