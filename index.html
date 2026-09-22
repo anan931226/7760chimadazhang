@@ -629,7 +629,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
   var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92ZXV1a21sZm1kZGFuend1d2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2NDA4ODIsImV4cCI6MjEwMzIxNjg4Mn0.eazZ272x7UsLcD1YvfMI19SB9i5B6XDQfV93H5c2vsQ";
 
   /* ================= data & state ================= */
-  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [], examAttempts: [], oralQuestions: [], paperNotes2026: [], papers2026Quiz: [], papers2026Oral: [], papers2026Attempts: [], versionGapNotes: [] };
+  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [], examAttempts: [], oralQuestions: [], paperNotes2026: [], papers2026Quiz: [], papers2026Oral: [], papers2026Attempts: [], versionGapNotes: [], chapterTaxonomy: [] };
   var ADMIN_PASSPHRASE = "cmh7760";
   var EMPLOYEE_ID_KEY = "mazhuan_employee_id";
   var ADMIN_SESSION_KEY = "mazhuan_admin_ok";
@@ -670,6 +670,20 @@ table.admin-table tr:last-child td{border-bottom:none;}
   function allChapters(){ return STATE.chapters.filter(function(c){ return c.id.indexOf('papers2026-') !== 0; }); }
   function allQuestions(){ return STATE.questions; }
   function findChapter(id){ return STATE.chapters.filter(function(c){ return c.id === id; })[0]; }
+
+  /* Miller 第十版章號 -> 站上筆記 id。chapter_taxonomy 的 primary_note 是人工
+     裁決過的主掛筆記（例如 Ch.46 掛 PBM 那篇而不是另一篇也提到它的），所以這裡
+     直接用它，不另外猜。章號 933 是第十版刪掉、只存在於第九版的 Ch.33，刻意用
+     900 以上的編號避開第十版 1-87 的空間。 */
+  var TAXONOMY_BY_CHAPTER = null;
+  function millerChapterNote(num){
+    if(!TAXONOMY_BY_CHAPTER){
+      TAXONOMY_BY_CHAPTER = {};
+      STATE.chapterTaxonomy.forEach(function(t){ TAXONOMY_BY_CHAPTER[t.chapter] = t; });
+    }
+    var t = TAXONOMY_BY_CHAPTER[num];
+    return t ? t.primary_note : null;
+  }
 
   /* ================= Supabase (PostgREST) ================= */
   function sbHeaders(extra){
@@ -738,7 +752,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
       sbSelect("papers2026_quiz").catch(function(){ return []; }),
       sbSelect("papers2026_oral").catch(function(){ return []; }),
       sbSelect("papers2026_attempts").catch(function(){ return []; }),
-      sbSelect("version_gap_notes").catch(function(){ return []; })
+      sbSelect("version_gap_notes").catch(function(){ return []; }),
+      sbSelect("chapter_taxonomy").catch(function(){ return []; })
     ]).then(function(results){
       STATE.chapters = results[0];
       STATE.questions = results[1];
@@ -754,6 +769,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
       STATE.papers2026Oral = results[11];
       STATE.papers2026Attempts = results[12];
       STATE.versionGapNotes = results[13];
+      STATE.chapterTaxonomy = results[14];
+      TAXONOMY_BY_CHAPTER = null; // 重新載入後要讓查表快取跟著重建
     });
   }
 
@@ -1607,14 +1624,20 @@ table.admin-table tr:last-child td{border-bottom:none;}
 
   /* normalize an exam_questions row into the shape renderQuizLive/answerQuiz
      expect, so wrong exam questions can sit in the same 錯題 list and be
-     retried through the ordinary quiz UI (chapter classification for exam
-     questions is deferred, so chapterId stays null here on purpose). */
+     retried through the ordinary quiz UI.
+
+     chapterId 取 miller_chapters 的**第一章**（詳解裡最先引用的那一章），再經
+     chapter_taxonomy 翻成站上筆記 id。52 題跨章題（48 題跨 2 章、3 題跨 3 章、
+     1 題跨 4 章）因此只算進主章：若每一章都算，落點分析的分母會超過實際作答
+     的題數，百分比就不再是「我在這類答對幾成」。其餘關聯章仍留在
+     exam_questions.miller_chapters 裡，要做「這章有哪些題」時照樣查得到。 */
   function examToQuizShape(q){
     var keys = examOptionKeys(q);
     var firstCorrect = q.answer ? q.answer.charAt(0) : null;
+    var chs = q.miller_chapters || [];
     return {
       id: q.id,
-      chapterId: null,
+      chapterId: chs.length ? millerChapterNote(chs[0]) : null,
       question: q.question,
       options: keys.map(function(k){ return q.options[k]; }),
       answerIndex: firstCorrect ? keys.indexOf(firstCorrect) : -1,
@@ -2164,7 +2187,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     Object.keys(latest).forEach(function(qid){
       var q = qById[qid]; if(!q) return;
       var key = q.chapterId;
-      if(!key) return; // 考古題目前沒有章節分類，落點統計先不計入
+      if(!key) return; // 仍有極少數題目對不到筆記（例如章號指到還沒建筆記的章）
       byChapter[key] = byChapter[key] || { total: 0, correct: 0 };
       byChapter[key].total++;
       if(latest[qid].is_correct) byChapter[key].correct++;
@@ -2182,7 +2205,9 @@ table.admin-table tr:last-child td{border-bottom:none;}
       if(!list.length) return '<div class="empty-state" style="padding:14px 0;">目前沒有題目</div>';
       return list.map(function(q){
         var ch = findChapter(q.chapterId);
-        var tag = ch ? ch.title : (q.examTag || '');
+        /* 考古題現在也有 chapterId 了，但這份清單要能認出是哪一年第幾題，
+           所以年度題號優先於章名——章名在上面的落點區塊已經看得到。 */
+        var tag = q.examTag || (ch ? ch.title : '');
         return '<div class="mine-q-row"><span class="ch-tag">' + esc(tag) + '</span><span class="q-txt">' + esc(q.question) + '</span></div>';
       }).join('');
     }
