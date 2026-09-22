@@ -341,6 +341,10 @@ mark{background:var(--mark-bg);color:var(--ink);padding:1px 4px;border-radius:3p
   width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
   padding:10px;border-radius:var(--radius-ctl);font-size:14px;margin-bottom:16px;
 }
+.quiz-setup-hint{
+  margin:18px 0 0;padding-top:14px;border-top:1px dashed var(--line);
+  font-size:12.5px;line-height:1.7;color:var(--ink-faint);
+}
 .btn{
   appearance:none;border:none;border-radius:var(--radius-ctl);
   padding:10px 18px;font-family:var(--font-ui);font-weight:600;font-size:14px;
@@ -427,6 +431,80 @@ select.exam-year-tag{
 }
 .exam-explain .tag{font-family:var(--font-mono);font-size:10px;color:var(--spo2);letter-spacing:.1em;margin-right:8px;display:block;margin-bottom:6px;}
 .exam-explain-body{white-space:pre-wrap;line-height:1.7;}
+
+/* ---- 版本落差筆記 (version-gap notes) ---- */
+.exam-vgn-entry{margin-top:22px;padding-top:18px;border-top:1px solid var(--line-soft);}
+.exam-vgn-hint{font-size:11.5px;color:var(--ink-faint);margin-top:8px;line-height:1.6;}
+
+.vgn-inline{
+  margin-top:14px;padding:12px 14px;background:var(--sec-eval-soft);
+  border-left:3px solid var(--sec-eval);border-radius:var(--radius-ctl);
+}
+.vgn-inline-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+.vgn-inline-head .tag{font-family:var(--font-mono);font-size:10px;color:var(--sec-eval);letter-spacing:.1em;}
+.vgn-inline-sub{font-size:11.5px;color:var(--ink-dim);}
+.vgn-inline-foot{margin-top:10px;font-size:11px;color:var(--ink-faint);}
+
+.vgn-entry{
+  background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius-ctl);
+  padding:12px 14px;margin-bottom:10px;
+}
+.vgn-entry:last-of-type{margin-bottom:0;}
+/* flagged = the compiler is not fully certain; must never read as equal to the rest */
+.vgn-entry.flagged{border-color:color-mix(in srgb, var(--nibp) 45%, var(--line));background:var(--nibp-soft);}
+.vgn-entry-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:6px;}
+.vgn-badge{font-size:10.5px;color:var(--spo2);background:var(--spo2-soft);border-radius:3px;padding:2px 7px;}
+.vgn-cat{font-size:10.5px;color:var(--ink-faint);}
+.vgn-opt{font-size:10.5px;color:var(--resp);background:var(--resp-soft);border-radius:3px;padding:2px 7px;}
+.vgn-flagtag{font-size:10.5px;color:var(--nibp);border:1px solid color-mix(in srgb, var(--nibp) 45%, var(--panel));border-radius:3px;padding:2px 7px;}
+.vgn-headline{font-size:14px;color:var(--ink);line-height:1.6;margin-bottom:4px;}
+.vgn-detail{font-size:13px;color:var(--ink-dim);line-height:1.75;}
+.vgn-quote{
+  margin-top:8px;padding:8px 11px;background:var(--panel-2);border-radius:var(--radius-ctl);
+  font-size:11.5px;line-height:1.65;color:var(--ink-dim);overflow-wrap:break-word;
+}
+.vgn-quote .pg{color:var(--ecg);}
+.vgn-flagnote{margin-top:8px;font-size:11px;color:var(--nibp);}
+.vgn-jumps{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.vgn-jump{
+  appearance:none;border:1px solid var(--line);background:var(--panel-2);color:var(--ink-dim);
+  border-radius:var(--radius-ctl);padding:4px 10px;font-size:11px;cursor:pointer;
+}
+.vgn-jump:hover{color:var(--ink);border-color:var(--ink-faint);}
+/* brief marker on the entry the reader just came back to, so a 77-entry page
+   doesn't leave them hunting for where they were */
+.vgn-returned{box-shadow:0 0 0 2px var(--ecg);}
+
+.vgn-page{max-width:780px;}
+.vgn-masthead{padding-bottom:18px;border-bottom:1px solid var(--line);}
+.vgn-eyebrow{font-size:10.5px;color:var(--ecg);letter-spacing:.14em;margin-bottom:8px;}
+.vgn-title{font-family:var(--font-display);font-size:22px;margin:0 0 10px;line-height:1.35;}
+.vgn-lede{font-size:13px;color:var(--ink-dim);line-height:1.75;margin:0 0 12px;}
+.vgn-meta{font-size:11px;color:var(--ink-faint);}
+.vgn-scope{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-ctl);padding:10px 14px;}
+.vgn-scope summary{cursor:pointer;font-size:12.5px;color:var(--ecg);}
+.vgn-scope p{font-size:12px;color:var(--ink-dim);line-height:1.75;margin:10px 0 0;}
+.vgn-controls{padding:14px 0;border-bottom:1px solid var(--line-soft);}
+.vgn-chiprow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px;}
+.vgn-chiprow:last-child{margin-bottom:0;}
+.vgn-chiplabel{font-size:10.5px;color:var(--ink-faint);letter-spacing:.06em;margin-right:4px;}
+.vgn-chip{
+  appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--ink-dim);
+  border-radius:999px;padding:4px 12px;font-size:12px;cursor:pointer;font-family:var(--font-ui);
+}
+.vgn-chip:hover{border-color:var(--ink-faint);color:var(--ink);}
+.vgn-chip.active{background:var(--ecg);border-color:var(--ecg);color:var(--ink-on-accent);}
+.vgn-chip.vgn-clear{color:var(--ink-faint);}
+.vgn-section{margin-top:28px;}
+.vgn-sec-head{display:flex;align-items:baseline;gap:10px;}
+.vgn-sec-head h3{font-family:var(--font-display);font-size:16px;margin:0;}
+.vgn-sec-count{font-size:11px;color:var(--ink-faint);}
+.vgn-sec-desc{font-size:12px;color:var(--ink-dim);margin:4px 0 14px;line-height:1.7;}
+.vgn-footer{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-faint);line-height:1.7;}
+@media (max-width:640px){
+  .vgn-title{font-size:19px;}
+  .vgn-entry{padding:10px 12px;}
+}
 .exam-explain-empty{color:var(--ink-faint);font-style:italic;}
 .exam-nav.quiz-nav{justify-content:space-between;}
 
@@ -551,7 +629,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
   var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92ZXV1a21sZm1kZGFuend1d2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2NDA4ODIsImV4cCI6MjEwMzIxNjg4Mn0.eazZ272x7UsLcD1YvfMI19SB9i5B6XDQfV93H5c2vsQ";
 
   /* ================= data & state ================= */
-  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [], examAttempts: [], oralQuestions: [], paperNotes2026: [], papers2026Quiz: [], papers2026Oral: [], papers2026Attempts: [] };
+  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [], examAttempts: [], oralQuestions: [], paperNotes2026: [], papers2026Quiz: [], papers2026Oral: [], papers2026Attempts: [], versionGapNotes: [] };
   var ADMIN_PASSPHRASE = "cmh7760";
   var EMPLOYEE_ID_KEY = "mazhuan_employee_id";
   var ADMIN_SESSION_KEY = "mazhuan_admin_ok";
@@ -659,7 +737,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
       sbSelect("paper_notes_2026").catch(function(){ return []; }), // table may not exist yet on old deploys
       sbSelect("papers2026_quiz").catch(function(){ return []; }),
       sbSelect("papers2026_oral").catch(function(){ return []; }),
-      sbSelect("papers2026_attempts").catch(function(){ return []; })
+      sbSelect("papers2026_attempts").catch(function(){ return []; }),
+      sbSelect("version_gap_notes").catch(function(){ return []; })
     ]).then(function(results){
       STATE.chapters = results[0];
       STATE.questions = results[1];
@@ -674,6 +753,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
       STATE.papers2026Quiz = results[10];
       STATE.papers2026Oral = results[11];
       STATE.papers2026Attempts = results[12];
+      STATE.versionGapNotes = results[13];
     });
   }
 
@@ -1423,6 +1503,11 @@ table.admin-table tr:last-child td{border-bottom:none;}
 
   /* ---------- exam (歷屆考古題) tab ---------- */
   var examBrowse = null; // {year:"__all__"|2020..2025, list:[], idx:0, answered:false}
+  /* set when the 考古題 view was entered by jumping from a 版本落差筆記 entry, so
+     the question can offer a way back to the note it came from instead of
+     stranding the reader in the question browser. Holds the entry id so the
+     browser can scroll back to that exact finding, not just its top. */
+  var vgnReturn = null;
 
   function examYears(){
     var years = {};
@@ -1448,7 +1533,16 @@ table.admin-table tr:last-child td{border-bottom:none;}
           '<select id="exam-year"><option value="__all__">全部年度混合（' + total + ' 題）</option>' + options + '</select>' +
           '<button class="btn btn-primary" id="exam-start">開始瀏覽</button>'
         : '<div class="empty-state" style="padding:20px 0;">考古題資料還沒上架。</div>') +
+        (STATE.versionGapNotes.length ?
+          '<div class="exam-vgn-entry">' +
+            '<button class="btn btn-ghost" id="exam-vgn">版本落差筆記</button>' +
+            '<div class="exam-vgn-hint">Miller 第九版→第十版的版本差異、教科書內部矛盾與考題對照，' +
+              '共 ' + STATE.versionGapNotes.length + ' 則。答題時該題若有相關紀錄，也會直接出現在詳解下方。</div>' +
+          '</div>' : '') +
       '</div>';
+
+    var vgnBtn = document.getElementById('exam-vgn');
+    if(vgnBtn) vgnBtn.addEventListener('click', renderVersionGapBrowser);
 
     var startBtn = document.getElementById('exam-start');
     if(startBtn){
@@ -1456,6 +1550,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
         var y = document.getElementById('exam-year').value;
         var pool = y === '__all__' ? STATE.examQuestions.slice() : STATE.examQuestions.filter(function(q){ return String(q.year) === y; });
         pool.sort(function(a,b){ return a.year - b.year || a.question_no - b.question_no; });
+        vgnReturn = null; // a fresh browse must not offer a stale "back to the note"
         examBrowse = { year: y, list: pool, idx: 0, answered: false };
         renderExamLive();
       });
@@ -1505,7 +1600,263 @@ table.admin-table tr:last-child td{border-bottom:none;}
       (q.reference ? '<div class="exam-ref mono">' + esc(q.reference) + '</div>' : '') +
       (q.explanation ? '<div class="exam-explain"><span class="tag">詳解</span><div class="exam-explain-body">' + esc(q.explanation) + '</div></div>' :
         '<div class="exam-explain exam-explain-empty">本題原始資料沒有留下詳解文字。</div>') +
-      examExplainImages(q);
+      examExplainImages(q) +
+      versionGapInline(q);
+  }
+
+  /* ================= 版本落差筆記 =================
+     Curated Miller 9th->10th edition-gap / textbook-self-contradiction findings,
+     compiled by the 麻專站專案 session as a by-product of the 2020-2025 考古題
+     citation-verification pass (Supabase table version_gap_notes, schema v11,
+     public read-only; source of truth is
+     source_materials/version_gap_notes/version_gap_notes.json, re-seeded whenever
+     new findings are added).
+
+     Two entry points, both inside the 考古題 tab rather than a 9th top-level tab
+     since every finding is derived from a 考古題: (1) an inline 提醒 appended to
+     each question's 詳解 for the 85 questions some finding names, (2) a
+     standalone year/category-filtered browser reached from the 考古題 setup
+     screen. Each row carries a pre-parsed `refs` array ([{year, question_no,
+     option}]) so neither side has to re-parse the compiler's free-text q_label
+     ("Q96–97" with an en dash, "Q40-C/D", positionally-paired multi-year forms)
+     at runtime -- that parsing happens once, offline, in the JSON build step.
+
+     Three things the compiler asked be preserved on a public site and that this
+     code deliberately enforces: the "not an official erratum" disclaimer shown
+     verbatim, `flagged` entries kept visually distinct rather than presented as
+     equal to the other 75, and the short Miller quotes rendered at their current
+     length (never expanded into long passages). */
+
+  var VGN_META = {
+    title: '版本落差與教科書內部矛盾筆記',
+    eyebrow: "Miller's Anesthesia 9th → 10th",
+    lede: '整理自2020–2025年麻醉專科考古題「引註校對」專案過程中，逐題比對Miller\'s Anesthesia第九版、第十版原文時發現的版本差異、教科書內部前後矛盾，以及考題與教科書不符之處。',
+    coverage: '2020–2025，共600題',
+    compiled: '2026-09-15',
+    disclaimer: [
+      '這些發現來自逐題核對考古題詳解與Miller\'s Anesthesia原文時的副產品，不是官方勘誤，也未經出版社或考選部確認——列出的每一項都已盡量附上頁碼與逐字原文，供讀者自行核對，而非直接採信的結論。',
+      '各年份查核深度：2020–2025 全部六年皆已完成逐題逐選項的第十版引註查證（含章節、頁碼、逐字英文引文核對）。',
+      '官方答案在所有案例中均未變動——本文件純粹記錄「原文本身怎麼寫」與「考題認定方向」之間的落差，供讀者自行判斷。'
+    ],
+    footer: '頁碼與引文均對應Miller\'s Anesthesia第十版（Gropper主編）；第九版引文另行標註。'
+  };
+
+  function vgnAll(){
+    return STATE.versionGapNotes.slice().sort(function(a,b){ return (a.sort_order||0) - (b.sort_order||0); });
+  }
+
+  /* PostgREST returns jsonb as a real array, but tolerate a string just in case
+     an older deploy or a hand-edited row hands back raw JSON text. */
+  function vgnJson(v){
+    if(typeof v === 'string'){ try { return JSON.parse(v); } catch(e){ return []; } }
+    return v || [];
+  }
+  function vgnRefs(n){ return vgnJson(n.refs); }
+  function vgnQuotes(n){ return vgnJson(n.quotes); }
+
+  function vgnRefMatches(r, year, questionNo){
+    return Number(r.year) === Number(year) && Number(r.question_no) === Number(questionNo);
+  }
+
+  function vgnFor(year, questionNo){
+    return vgnAll().filter(function(n){
+      return vgnRefs(n).some(function(r){ return vgnRefMatches(r, year, questionNo); });
+    });
+  }
+
+  /* which option letters this finding calls out for this specific question --
+     the compiler tags many findings down to the option (e.g. "Q10-D") */
+  function vgnOptionsFor(n, year, questionNo){
+    var seen = {};
+    vgnRefs(n).forEach(function(r){
+      if(vgnRefMatches(r, year, questionNo) && r.option) seen[r.option] = true;
+    });
+    return Object.keys(seen).sort();
+  }
+
+  function vgnEntryHtml(n, ctxYear, ctxNo, withJumps){
+    var opts = ctxYear ? vgnOptionsFor(n, ctxYear, ctxNo) : [];
+    var badge = [n.year_label, n.q_label, n.ch_label].filter(function(s){ return !!s; }).join(' · ');
+    var jumps = '';
+    if(withJumps){
+      var seen = {}, list = [];
+      vgnRefs(n).forEach(function(r){
+        var key = r.year + '-' + r.question_no;
+        if(seen[key]) return;
+        seen[key] = true;
+        list.push(r);
+      });
+      jumps = list.length ? '<div class="vgn-jumps">' + list.map(function(r){
+        return '<button class="vgn-jump mono" data-year="' + esc(r.year) + '" data-no="' + esc(r.question_no) +
+          '" data-entry="' + esc(n.id) + '">' +
+          '去看 ' + esc(r.year) + ' 第 ' + esc(r.question_no) + ' 題</button>';
+      }).join('') + '</div>' : '';
+    }
+    /* only the browser gets a DOM id -- the inline copy inside a 詳解 renders the
+       same entry, and two elements sharing an id would break the scroll-back */
+    return '<div class="vgn-entry' + (n.flagged ? ' flagged' : '') + '"' +
+      (withJumps ? ' id="vgn-entry-' + esc(n.id) + '"' : '') + '>' +
+      '<div class="vgn-entry-head">' +
+        (badge ? '<span class="vgn-badge mono">' + esc(badge) + '</span>' : '') +
+        '<span class="vgn-cat mono">' + esc(n.category_title) + '</span>' +
+        (opts.length ? '<span class="vgn-opt mono">對應選項 ' + esc(opts.join('、')) + '</span>' : '') +
+        (n.flagged ? '<span class="vgn-flagtag mono">待確認</span>' : '') +
+      '</div>' +
+      '<div class="vgn-headline">' + esc(n.headline) + '</div>' +
+      '<div class="vgn-detail">' + esc(n.detail) + '</div>' +
+      vgnQuotes(n).map(function(qt){
+        return '<div class="vgn-quote mono"><span class="pg">' + esc(qt.pg) + '</span>：「' + esc(qt.en) + '」</div>';
+      }).join('') +
+      (n.flagged ? '<div class="vgn-flagnote">整理者對這一則尚未完全確定，請與其餘已逐條對過第十版原文的項目分開看待。</div>' : '') +
+      jumps +
+      '</div>';
+  }
+
+  function versionGapInline(q){
+    var notes = vgnFor(q.year, q.question_no);
+    if(!notes.length) return '';
+    return '<div class="vgn-inline">' +
+      '<div class="vgn-inline-head">' +
+        '<span class="tag">版本落差提醒</span>' +
+        '<span class="vgn-inline-sub">本題在「版本落差筆記」中有 ' + notes.length + ' 則相關紀錄</span>' +
+      '</div>' +
+      notes.map(function(n){ return vgnEntryHtml(n, q.year, q.question_no, false); }).join('') +
+      '<div class="vgn-inline-foot">讀者自行整理的核對筆記，非官方勘誤；官方答案均未變動。</div>' +
+      '</div>';
+  }
+
+  var vgnFilter = { years: [], cats: [] };
+
+  function vgnYears(){
+    var seen = {};
+    vgnAll().forEach(function(n){
+      vgnRefs(n).forEach(function(r){ seen[r.year] = true; });
+    });
+    return Object.keys(seen).map(Number).sort();
+  }
+
+  function vgnCats(){
+    var seen = {}, out = [];
+    vgnAll().forEach(function(n){
+      if(seen[n.category_id]) return;
+      seen[n.category_id] = true;
+      out.push({ id: n.category_id, title: n.category_title, desc: n.category_desc });
+    });
+    return out;
+  }
+
+  function vgnMatches(n){
+    if(vgnFilter.cats.length && vgnFilter.cats.indexOf(n.category_id) < 0) return false;
+    if(vgnFilter.years.length){
+      var hit = vgnRefs(n).some(function(r){ return vgnFilter.years.indexOf(Number(r.year)) >= 0; });
+      if(!hit) return false;
+    }
+    return true;
+  }
+
+  function vgnToggle(list, val){
+    var i = list.indexOf(val);
+    if(i >= 0) list.splice(i, 1); else list.push(val);
+  }
+
+  function renderVersionGapBrowser(scrollToId){
+    var wrap = document.getElementById('exam-wrap');
+    var all = vgnAll();
+    if(!all.length){
+      wrap.innerHTML = '<div class="vgn-page"><div class="empty-state" style="padding:20px 0;">版本落差筆記還沒上架。</div>' +
+        '<div class="quiz-nav"><button class="btn btn-ghost" id="vgn-back">回考古題選單</button></div></div>';
+      document.getElementById('vgn-back').addEventListener('click', renderExamSetup);
+      return;
+    }
+
+    var shown = all.filter(vgnMatches);
+    var cats = vgnCats();
+    var byCat = {};
+    shown.forEach(function(n){ (byCat[n.category_id] = byCat[n.category_id] || []).push(n); });
+
+    wrap.innerHTML =
+      '<div class="vgn-page">' +
+        '<div class="vgn-masthead">' +
+          '<div class="vgn-eyebrow mono">' + esc(VGN_META.eyebrow) + '</div>' +
+          '<h2 class="vgn-title">' + esc(VGN_META.title) + '</h2>' +
+          '<p class="vgn-lede">' + esc(VGN_META.lede) + '</p>' +
+          '<div class="vgn-meta mono">涵蓋 ' + esc(VGN_META.coverage) + '　·　整理日期 ' + esc(VGN_META.compiled) +
+            '　·　共 ' + all.length + ' 則</div>' +
+          '<details class="vgn-scope"><summary>關於這份整理的範圍與限制</summary>' +
+            VGN_META.disclaimer.map(function(p){ return '<p>' + esc(p) + '</p>'; }).join('') +
+          '</details>' +
+        '</div>' +
+        '<div class="vgn-controls">' +
+          '<div class="vgn-chiprow"><span class="vgn-chiplabel mono">年份</span>' +
+            vgnYears().map(function(y){
+              return '<button class="vgn-chip' + (vgnFilter.years.indexOf(y) >= 0 ? ' active' : '') +
+                '" data-kind="year" data-val="' + y + '">' + y + '</button>';
+            }).join('') +
+          '</div>' +
+          '<div class="vgn-chiprow"><span class="vgn-chiplabel mono">分類</span>' +
+            cats.map(function(c){
+              return '<button class="vgn-chip' + (vgnFilter.cats.indexOf(c.id) >= 0 ? ' active' : '') +
+                '" data-kind="cat" data-val="' + esc(c.id) + '">' + esc(c.title) + '</button>';
+            }).join('') +
+            ((vgnFilter.years.length || vgnFilter.cats.length) ?
+              '<button class="vgn-chip vgn-clear" data-kind="clear" data-val="">清除篩選</button>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="vgn-body">' +
+          (shown.length ? cats.filter(function(c){ return byCat[c.id] && byCat[c.id].length; }).map(function(c){
+            return '<section class="vgn-section">' +
+              '<div class="vgn-sec-head"><h3>' + esc(c.title) + '</h3>' +
+                '<span class="vgn-sec-count mono">' + byCat[c.id].length + ' 則</span></div>' +
+              '<p class="vgn-sec-desc">' + esc(c.desc) + '</p>' +
+              byCat[c.id].map(function(n){ return vgnEntryHtml(n, null, null, true); }).join('') +
+              '</section>';
+          }).join('') : '<div class="empty-state" style="padding:20px 0;">目前篩選條件下沒有符合的項目。</div>') +
+        '</div>' +
+        '<div class="vgn-footer">' + esc(VGN_META.footer) + '</div>' +
+        '<div class="quiz-nav"><button class="btn btn-ghost" id="vgn-back">回考古題選單</button></div>' +
+      '</div>';
+
+    wrap.querySelectorAll('.vgn-chip').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var kind = btn.getAttribute('data-kind');
+        if(kind === 'clear'){ vgnFilter.years = []; vgnFilter.cats = []; }
+        else if(kind === 'year') vgnToggle(vgnFilter.years, Number(btn.getAttribute('data-val')));
+        else vgnToggle(vgnFilter.cats, btn.getAttribute('data-val'));
+        renderVersionGapBrowser();
+      });
+    });
+
+    wrap.querySelectorAll('.vgn-jump').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        vgnJumpToQuestion(btn.getAttribute('data-year'), btn.getAttribute('data-no'), btn.getAttribute('data-entry'));
+      });
+    });
+
+    document.getElementById('vgn-back').addEventListener('click', renderExamSetup);
+
+    /* coming back from a question: put the reader back on the finding they left
+       from, not at the top of a 77-entry page */
+    if(scrollToId){
+      var target = document.getElementById('vgn-entry-' + scrollToId);
+      if(target){
+        target.scrollIntoView({ block: 'center' });
+        target.classList.add('vgn-returned');
+      }
+    }
+  }
+
+  /* jump straight from a finding to the 考古題 it describes, reusing the same
+     single-year browse pool the year dropdown builds so the jump selector and
+     上一題/下一題 keep working from there */
+  function vgnJumpToQuestion(year, questionNo, entryId){
+    var pool = STATE.examQuestions.filter(function(q){ return String(q.year) === String(year); });
+    pool.sort(function(a,b){ return a.question_no - b.question_no; });
+    var idx = -1;
+    pool.forEach(function(q, i){ if(Number(q.question_no) === Number(questionNo)) idx = i; });
+    if(idx < 0) return;
+    vgnReturn = entryId || null;
+    examBrowse = { year: String(year), list: pool, idx: idx, answered: false };
+    renderExamLive();
   }
 
   function renderExamLive(){
@@ -1537,6 +1888,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
         '<div id="exam-reveal-slot"></div>' +
         '<div class="quiz-nav exam-nav">' +
           '<button class="btn btn-ghost" id="exam-prev"' + (examBrowse.idx === 0 ? ' disabled' : '') + '>上一題</button>' +
+          (vgnReturn ? '<button class="btn btn-ghost" id="exam-vgn-back">&#8592; 回版本落差筆記</button>' : '') +
           '<button class="btn btn-ghost" id="exam-back">回選單</button>' +
           '<button class="btn btn-primary" id="exam-next"' + (examBrowse.idx >= examBrowse.list.length-1 ? ' disabled' : '') + '>下一題</button>' +
         '</div>' +
@@ -1564,7 +1916,15 @@ table.admin-table tr:last-child td{border-bottom:none;}
     });
     document.getElementById('exam-back').addEventListener('click', function(){
       examBrowse = null;
+      vgnReturn = null;
       renderExamSetup();
+    });
+    var vgnBackBtn = document.getElementById('exam-vgn-back');
+    if(vgnBackBtn) vgnBackBtn.addEventListener('click', function(){
+      var entryId = vgnReturn;
+      examBrowse = null;
+      vgnReturn = null;
+      renderVersionGapBrowser(entryId);
     });
     document.getElementById('exam-fav').addEventListener('click', function(){
       var btn = document.getElementById('exam-fav');
