@@ -396,6 +396,22 @@ mark{background:var(--mark-bg);color:var(--ink);padding:1px 4px;border-radius:3p
 .exam-setup h2{font-family:var(--font-display);font-size:20px;margin:0 0 14px;}
 .exam-scope-hint{margin:0 0 18px;font-size:12.5px;line-height:1.7;color:var(--ink-faint);}
 .exam-setup label{display:block;font-family:var(--font-mono);font-size:11px;color:var(--ink-dim);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+/* 範圍的兩種切法：依題庫／依章節 */
+.scope-mode{display:inline-flex;gap:0;margin:0 0 18px;border:1px solid var(--line);border-radius:999px;overflow:hidden;}
+.scope-mode-btn{
+  font-family:var(--font-mono);font-size:12px;letter-spacing:.04em;
+  background:var(--panel);border:none;color:var(--ink-dim);
+  padding:7px 18px;cursor:pointer;transition:background .15s ease,color .15s ease;
+}
+.scope-mode-btn+.scope-mode-btn{border-left:1px solid var(--line);}
+.scope-mode-btn:hover{color:var(--ink);}
+.scope-mode-btn.active{background:var(--nibp);color:var(--panel);}
+.scope-stat{font-size:12.5px;color:var(--ink-faint);margin:-8px 0 14px;line-height:1.7;}
+.scope-stat b{color:var(--ink-dim);font-family:var(--font-mono);}
+.scope-opts{display:flex;flex-wrap:wrap;gap:18px;margin:0 0 18px;}
+.scope-opt{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-dim);cursor:pointer;
+  text-transform:none;letter-spacing:normal;font-family:inherit;margin-bottom:0;}
+.scope-opt input{accent-color:var(--nibp);width:15px;height:15px;cursor:pointer;}
 .exam-setup select{
   width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
   padding:10px;border-radius:var(--radius-ctl);font-size:14px;margin-bottom:16px;
@@ -807,7 +823,9 @@ table.admin-table tr:last-child td{border-bottom:none;}
       STATE.versionGapNotes = results[13];
       STATE.chapterTaxonomy = results[14];
       STATE.chapterCategories = results[15];
-      TAXONOMY_BY_CHAPTER = null; // 重新載入後要讓查表快取跟著重建
+      // 重新載入後要讓查表快取跟著重建
+      TAXONOMY_BY_CHAPTER = null;
+      CHAPTER_INDEX = null;
     });
   }
 
@@ -932,7 +950,6 @@ table.admin-table tr:last-child td{border-bottom:none;}
   var currentTab = "read";
   var currentChapterId = null;
   var searchTerm = "";
-  var quiz = null; // {questions:[], idx:0, score:0, answered:false}
   var currentPaper2026Id = null;
   var paper2026SearchTerm = "";
 
@@ -1073,9 +1090,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
       "&source=eq." + encodeURIComponent(src)).catch(function(){});
   }
 
-  /* id -> quiz 形狀，三個題庫都查得到。renderMine 的錯題／收藏、以及續作進度還原
-     都要用：「我的紀錄」的「重測這些」會把考古題和 18 篇的題目丟進測驗流程，接著
-     下一題就會存成 session，只從 STATE.questions 還原的話那份進度復原時會整個變空。 */
+  /* id -> quiz 形狀，三個題庫都查得到。「我的紀錄」的錯題與收藏清單靠它把三個題庫
+     的題目攤平成同一種形狀來顯示。 */
   function quizIndexById(){
     var byId = {};
     allQuestions().forEach(function(q){ byId[q.id] = q; });
@@ -1084,12 +1100,17 @@ table.admin-table tr:last-child td{border-bottom:none;}
     return byId;
   }
 
-  function resumeSession(session){
-    var qById = quizIndexById();
-    var questions = session.question_ids.map(function(qid){ return qById[qid]; }).filter(Boolean);
-    var idx = Math.min(session.idx, questions.length);
-    quiz = { questions: questions, idx: idx, score: session.score, answered: false };
-    renderQuizLive();
+  /* ---------- 作答過的題目 ----------
+     「做到哪裡」真正可靠的來源是 attempts，不是續作進度那一列：每一次作答都永久
+     記在 quiz_attempts / exam_attempts / papers2026_attempts 裡，跨題庫、跨裝置、
+     換範圍都還在。續作進度只多記「停在第幾個位置」與「本輪幾分」，綁死一批題目、
+     一跳題就失準。所以題庫範圍的「做過／未做」與「只出沒做過的」都走這裡。 */
+  function answeredIdSet(employeeId){
+    var seen = {};
+    allAttempts().forEach(function(a){
+      if(a.employee_id === employeeId) seen[a.question_id] = true;
+    });
+    return seen;
   }
 
   function resetBaseline(employeeId, onDone){
@@ -1110,7 +1131,6 @@ table.admin-table tr:last-child td{border-bottom:none;}
         '<div class="brand"><span class="pulse">&#9673;</span> 麻專站 <span class="sub">Anesthesia Board Console</span></div>' +
         '<div class="tabs">' +
           '<button class="tab-btn" data-tab="read">讀筆記</button>' +
-          '<button class="tab-btn" data-tab="quiz">測驗</button>' +
           '<button class="tab-btn" data-tab="exam">考古題</button>' +
           '<button class="tab-btn" data-tab="oral">口試</button>' +
           '<button class="tab-btn" data-tab="papers2026">2026麻專18篇</button>' +
@@ -1132,7 +1152,6 @@ table.admin-table tr:last-child td{border-bottom:none;}
         '</div>' +
         '<div class="content-pane"><div class="content-inner" id="content-inner"></div></div>' +
       '</div>' +
-      '<div class="view" id="view-quiz"><div class="quiz-wrap" id="quiz-wrap"></div></div>' +
       '<div class="view" id="view-exam"><div class="exam-wrap" id="exam-wrap"></div></div>' +
       '<div class="view" id="view-oral"><div class="exam-wrap" id="oral-wrap"></div></div>' +
       '<div class="view" id="view-papers2026">' +
@@ -1191,11 +1210,10 @@ table.admin-table tr:last-child td{border-bottom:none;}
     document.querySelectorAll('.tab-btn').forEach(function(b){
       b.classList.toggle('active', b.getAttribute('data-tab') === tab);
     });
-    ['read','quiz','exam','oral','papers2026','mine','add','admin'].forEach(function(t){
+    ['read','exam','oral','papers2026','mine','add','admin'].forEach(function(t){
       document.getElementById('view-' + t).classList.toggle('active', t === tab);
     });
     if(tab === 'read') renderRead();
-    if(tab === 'quiz') renderQuizSetup();
     if(tab === 'exam') renderExamSetup();
     if(tab === 'oral') renderOralSetup();
     if(tab === 'papers2026') renderPapers2026();
@@ -1504,140 +1522,6 @@ table.admin-table tr:last-child td{border-bottom:none;}
     });
   }
 
-  /* ---------- quiz tab ---------- */
-  function renderQuizSetup(){
-    var wrap = document.getElementById('quiz-wrap');
-    var chaptersWithQ = allChapters().filter(function(c){ return questionCountFor(c.id) > 0; })
-      .sort(function(a,b){ return (a.num||999)-(b.num||999); });
-    var options = chaptersWithQ.map(function(c){
-      return '<option value="' + esc(c.id) + '">' + esc(c.title) + '（' + questionCountFor(c.id) + ' 題）</option>';
-    }).join('');
-
-    var id = getEmployeeId();
-    var session = id ? getSession(id) : null;
-
-    wrap.innerHTML =
-      '<div class="quiz-setup">' +
-        '<h2>選擇題測驗</h2>' +
-        (session ?
-          '<div class="resume-card">' +
-            '<div>上次測驗還沒做完：第 <b>' + (session.idx+1) + ' / ' + session.question_ids.length + '</b> 題，目前 <b>' + session.score + '</b> 分</div>' +
-            '<div class="resume-actions">' +
-              '<button class="btn btn-primary" id="quiz-resume">繼續上次的測驗</button>' +
-              '<button class="btn btn-ghost" id="quiz-discard">放棄，重新開始</button>' +
-            '</div>' +
-          '</div>' : '') +
-        (chaptersWithQ.length ? '' : '<div class="empty-state" style="padding:20px 0;">目前題庫是空的，先去「新增內容」新增幾題吧。</div>') +
-        (chaptersWithQ.length ?
-          '<label>章節範圍</label>' +
-          '<select id="quiz-chapter"><option value="__all__">全部章節混合（' + allQuestions().length + ' 題）</option>' + options + '</select>' +
-          '<button class="btn btn-primary" id="quiz-start">開始新測驗</button>'
-        : '') +
-        '<p class="quiz-setup-hint">單一章節的題目現在也直接附在「讀筆記」該篇筆記的最後面（章節測驗），' +
-        '讀完馬上就能作答。這裡是隨機出題、答完直接結算的模式；' +
-        '想照順序看題目、跨三個題庫挑範圍、隨時跳題的話走「考古題」分頁的題目瀏覽，' +
-        '那邊一樣會計分、也會記住進度，兩邊的進度各存各的、不會互相覆蓋。</p>' +
-      '</div>';
-
-    if(session){
-      document.getElementById('quiz-resume').addEventListener('click', function(){ resumeSession(session); });
-      document.getElementById('quiz-discard').addEventListener('click', function(){
-        clearSession(id);
-        renderQuizSetup();
-      });
-    }
-    var startBtn = document.getElementById('quiz-start');
-    if(startBtn){
-      startBtn.addEventListener('click', function(){
-        var eid = ensureEmployeeId();
-        var chId = document.getElementById('quiz-chapter').value;
-        var pool = chId === '__all__' ? allQuestions() : allQuestions().filter(function(q){ return q.chapterId === chId; });
-        quiz = { questions: shuffle(pool), idx: 0, score: 0, answered: false };
-        if(eid) saveSession(eid, quiz);
-        renderQuizLive();
-      });
-    }
-  }
-
-  function renderQuizLive(){
-    var wrap = document.getElementById('quiz-wrap');
-    if(!quiz || quiz.idx >= quiz.questions.length){
-      var total = quiz ? quiz.questions.length : 0;
-      var score = quiz ? quiz.score : 0;
-      var eidDone = getEmployeeId();
-      if(eidDone) clearSession(eidDone);
-      wrap.innerHTML =
-        '<div class="quiz-live quiz-done">' +
-          '<div class="label">測驗結束</div>' +
-          '<div class="final mono">' + score + ' / ' + total + '</div>' +
-          '<div class="label">' + (total ? Math.round(score/total*100) : 0) + '% 正確率</div>' +
-          '<div class="quiz-nav" style="justify-content:center;margin-top:24px;">' +
-            '<button class="btn btn-ghost" id="quiz-again">再測一次</button>' +
-          '</div>' +
-        '</div>';
-      document.getElementById('quiz-again').addEventListener('click', renderQuizSetup);
-      return;
-    }
-    quiz.answered = false;
-    var q = quiz.questions[quiz.idx];
-    var ch = findChapter(q.chapterId);
-    wrap.innerHTML =
-      '<div class="quiz-live">' +
-        '<div class="quiz-progress"><span class="idx mono">第 ' + (quiz.idx+1) + ' / ' + quiz.questions.length + ' 題</span><span class="score mono">' + quiz.score + '</span></div>' +
-        (ch ? '<div class="quiz-chapter-tag">' + esc(ch.title) + '</div>' : '') +
-        '<div class="quiz-q">' + inline(q.question) +
-          '<button class="fav-star' + (isFavorited(q.id) ? ' active' : '') + '" id="quiz-fav" title="收藏這題">&#9733;</button>' +
-        '</div>' +
-        '<div class="quiz-options" id="quiz-options"></div>' +
-        '<div id="quiz-explain-slot"></div>' +
-        '<div class="quiz-nav"><button class="btn btn-primary" id="quiz-next" disabled>下一題</button></div>' +
-      '</div>';
-
-    document.getElementById('quiz-fav').addEventListener('click', function(){
-      var btn = this;
-      toggleFavorite(q.id, 'chapter', function(){ btn.classList.toggle('active', isFavorited(q.id)); });
-    });
-
-    var optWrap = document.getElementById('quiz-options');
-    q.options.forEach(function(optText, idx){
-      var b = document.createElement('button');
-      b.className = 'opt-btn';
-      b.innerHTML = '<span class="k mono">' + String.fromCharCode(65+idx) + '</span><span>' + inline(optText) + '</span>';
-      b.addEventListener('click', function(){ answerQuiz(idx); });
-      optWrap.appendChild(b);
-    });
-
-    document.getElementById('quiz-next').addEventListener('click', function(){
-      quiz.idx++;
-      var eidNext = getEmployeeId();
-      if(eidNext && quiz.idx < quiz.questions.length) saveSession(eidNext, quiz);
-      renderQuizLive();
-    });
-  }
-
-  function answerQuiz(idx){
-    if(quiz.answered) return;
-    quiz.answered = true;
-    var q = quiz.questions[quiz.idx];
-    /* 考古題有 9 題答案是 "AB" 這種複選／送分，examToQuizShape() 的 answerIndex 只
-       留得住第一個字母。「我的紀錄」的重測錯題會把這些題丟進這個測驗流程，所以這裡
-       改看 answerIndices（有幾個正確選項就列幾個）；章節題與 18 篇沒有這個欄位，
-       退回原本的單一 answerIndex，行為不變。 */
-    var correctSet = (q.answerIndices && q.answerIndices.length) ? q.answerIndices : [q.answerIndex];
-    var isRight = correctSet.indexOf(idx) !== -1;
-    var buttons = document.querySelectorAll('#quiz-options .opt-btn');
-    buttons.forEach(function(btn, i){
-      btn.disabled = true;
-      if(correctSet.indexOf(i) !== -1) btn.classList.add('correct');
-      else if(i === idx) btn.classList.add('incorrect');
-    });
-    if(isRight) quiz.score++;
-    recordAttempt(q, idx, isRight);
-    document.getElementById('quiz-explain-slot').innerHTML =
-      '<div class="quiz-explain"><span class="tag">解析</span>' + inline(q.explanation || '') + '</div>';
-    document.getElementById('quiz-next').disabled = false;
-  }
-
   /* ---------- exam (歷屆考古題) tab ---------- */
   var examBrowse = null; // newBrowse() 產出的物件；null 表示停在設定頁
   /* set when the 考古題 view was entered by jumping from a 版本落差筆記 entry, so
@@ -1720,9 +1604,112 @@ table.admin-table tr:last-child td{border-bottom:none;}
     return first._source === 'papers2026' ? '2026麻專18篇' : '章節筆記題庫';
   }
 
+  /* ---------- 依章節的範圍 ----------
+     每個 Miller 章底下掛兩種題：考古題（miller_chapters 有引用到這一章的）與該章
+     各篇筆記的題目。**跨章題會出現在它引用到的每一章**，這裡刻意跟落點分析相反——
+     落點只算主章是為了分母不虛胖，但「這一章有哪些題」本來就該把碰到它的題目全部
+     看到。用 taxonomy 的 notes[] 而不是 primary_note，否則像 Ch.46 的第二篇筆記
+     ch50 那 6 題會被默默漏掉。 */
+  var CHAPTER_INDEX = null;
+  function chapterQuestionIndex(){
+    if(CHAPTER_INDEX) return CHAPTER_INDEX;
+    var byChapter = {};
+    function bucket(n){ return byChapter[n] || (byChapter[n] = { exam: [], notes: [] }); }
+    STATE.examQuestions.forEach(function(q){
+      (q.miller_chapters || []).forEach(function(n){ bucket(n).exam.push(q); });
+    });
+    var noteToChapters = {};
+    STATE.chapterTaxonomy.forEach(function(t){
+      (t.notes || []).forEach(function(nid){
+        (noteToChapters[nid] || (noteToChapters[nid] = [])).push(t.chapter);
+      });
+    });
+    allQuestions().forEach(function(q){
+      (noteToChapters[q.chapterId] || []).forEach(function(n){ bucket(n).notes.push(q); });
+    });
+    CHAPTER_INDEX = byChapter;
+    return byChapter;
+  }
+
+  /* 章號 900 以上是第十版刪掉、只存在第九版的章（目前只有 933 = 第九版 Ch.33） */
+  function millerChapterLabel(t){
+    var n = t.chapter >= 900 ? ('第九版 Ch.' + (t.chapter - 900)) : ('Ch.' + t.chapter);
+    return n + ' ' + t.title;
+  }
+
+  function chapterPool(num){
+    var b = chapterQuestionIndex()[num];
+    if(!b) return [];
+    var exam = b.exam.slice().sort(function(a, c){ return a.year - c.year || a.question_no - c.question_no; });
+    var notes = b.notes.map(function(q){
+      var ch = findChapter(q.chapterId);
+      return quizToExamShape(q, 'chapter', ch ? ch.title : '章節題');
+    });
+    return exam.concat(notes);
+  }
+
+  /* 一題可能同時掛在同一個大類底下的好幾章，所以整類混合要去重，否則題數會虛胖、
+     同一題還會在瀏覽時出現兩次。 */
+  function categoryPool(catId){
+    if(catId === 'cat-papers2026') return examPoolFor('p26:__all__');
+    var rows = STATE.chapterTaxonomy.filter(function(t){ return t.category_id === catId; })
+      .sort(function(a, b){ return a.chapter - b.chapter; });
+    var seen = {}, out = [];
+    rows.forEach(function(t){
+      chapterPool(t.chapter).forEach(function(q){
+        if(seen[q.id]) return;
+        seen[q.id] = true;
+        out.push(q);
+      });
+    });
+    return out;
+  }
+
+  function chapterScopeOptions(){
+    var idx = chapterQuestionIndex();
+    var byCat = {};
+    STATE.chapterTaxonomy.forEach(function(t){
+      (byCat[t.category_id] || (byCat[t.category_id] = [])).push(t);
+    });
+    var out = '';
+    STATE.chapterCategories.slice()
+      .sort(function(a, b){ return (a.sort_order || 0) - (b.sort_order || 0); })
+      .forEach(function(c){
+        if(c.id === 'cat-papers2026') return; // 沒有 Miller 章號，最後單獨列一組
+        var rows = (byCat[c.id] || []).filter(function(t){
+          var b = idx[t.chapter];
+          return b && (b.exam.length + b.notes.length) > 0;
+        }).sort(function(a, b){ return a.chapter - b.chapter; });
+        if(!rows.length) return;
+        out += '<optgroup label="' + esc(c.name) + '">' +
+          '<option value="cat:' + esc(c.id) + '">整類混合（' + categoryPool(c.id).length + ' 題）</option>' +
+          rows.map(function(t){
+            var b = idx[t.chapter];
+            return '<option value="mch:' + t.chapter + '">' + esc(millerChapterLabel(t)) +
+              '（' + (b.exam.length + b.notes.length) + ' 題）</option>';
+          }).join('') + '</optgroup>';
+      });
+
+    var p26 = {};
+    STATE.papers2026Quiz.forEach(function(q){ p26[q.chapter_id] = (p26[q.chapter_id] || 0) + 1; });
+    var p26Ids = Object.keys(p26).sort();
+    if(p26Ids.length){
+      out += '<optgroup label="2026麻專18篇（無 Miller 章號對應）">' +
+        '<option value="p26:__all__">全部篇章混合（' + STATE.papers2026Quiz.length + ' 題）</option>' +
+        p26Ids.map(function(cid){
+          var ch = findChapter(cid);
+          return '<option value="p26:' + esc(cid) + '">' + esc(ch ? ch.title : cid) + '（' + p26[cid] + ' 題）</option>';
+        }).join('') + '</optgroup>';
+    }
+    return out;
+  }
+
   function examPoolFor(value){
     var sep = value.indexOf(':');
     var kind = value.slice(0, sep), key = value.slice(sep + 1);
+
+    if(kind === 'mch') return chapterPool(Number(key));
+    if(kind === 'cat') return categoryPool(key);
 
     if(kind === 'chapter'){
       var chOrder = {};
@@ -1752,23 +1739,30 @@ table.admin-table tr:last-child td{border-bottom:none;}
     return pool;
   }
 
+  /* 選範圍的兩種切法，以及兩個作答選項。都只活在記憶體裡：重畫設定頁時要記得住，
+     但不值得為了跨裝置同步再開一張表。 */
+  var BROWSE_MODE = 'bank';      // 'bank' 依題庫 ／ 'chapter' 依章節
+  var BROWSE_SHUFFLE = false;    // 隨機排序
+  var BROWSE_UNSEEN = false;     // 只出沒做過的
+
   function renderExamSetup(){
     var wrap = document.getElementById('exam-wrap');
     var total = STATE.examQuestions.length;
-    var options = examScopeOptions();
+    var options = BROWSE_MODE === 'chapter' ? chapterScopeOptions() : examScopeOptions();
 
     var eid = getEmployeeId();
-    var saved = eid ? getSession(eid, SESSION_BROWSE) : null;
+    /* 續作卡片也認舊的 'chapter' 那一列——測驗分頁收掉之前存的進度不該憑空消失，
+       接續之後就會以 'browse' 存回去。 */
+    var saved = eid ? (getSession(eid, SESSION_BROWSE) || getSession(eid, SESSION_CHAPTER)) : null;
     var savedPool = saved ? browsePoolFromIds(saved.question_ids) : [];
     if(saved && !savedPool.length) saved = null; // 題目全對不到就當作沒有進度
 
     wrap.innerHTML =
       '<div class="exam-setup">' +
         '<h2>題目瀏覽</h2>' +
-        '<p class="exam-scope-hint">歷屆考古題、章節筆記題庫、2026麻專18篇 三個題庫共用這個瀏覽器，' +
-        '在下面選要看哪一批。作答會即時計分、隨時可以按「結算成績」看這一輪的成績與答錯的題目；' +
-        '中途離開會自動記住進度，下次回到這頁就能接著做。' +
-        '作答紀錄一律進「我的紀錄」的錯題、收藏與落點分析。</p>' +
+        '<p class="exam-scope-hint">歷屆考古題、章節筆記題庫、2026麻專18篇 三個題庫共用這個瀏覽器。' +
+        '範圍可以<b>依題庫</b>選，也可以<b>依 Miller 章節</b>選——同一章的考古題與筆記題會一起出現。' +
+        '作答會即時計分、隨時可以按「結算成績」；作答紀錄一律進「我的紀錄」的錯題、收藏與落點分析。</p>' +
         (saved ?
           '<div class="resume-card">' +
             '<div>上次的「' + esc(browseSourceLabel(savedPool)) + '」還沒看完：第 <b>' +
@@ -1780,8 +1774,17 @@ table.admin-table tr:last-child td{border-bottom:none;}
             '</div>' +
           '</div>' : '') +
         (total ?
+          '<div class="scope-mode" role="group" aria-label="分類方式">' +
+            '<button type="button" class="scope-mode-btn' + (BROWSE_MODE === 'bank' ? ' active' : '') + '" data-mode="bank">依題庫</button>' +
+            '<button type="button" class="scope-mode-btn' + (BROWSE_MODE === 'chapter' ? ' active' : '') + '" data-mode="chapter">依章節</button>' +
+          '</div>' +
           '<label>題庫範圍</label>' +
           '<select id="exam-year">' + options + '</select>' +
+          '<div class="scope-stat" id="scope-stat"></div>' +
+          '<div class="scope-opts">' +
+            '<label class="scope-opt"><input type="checkbox" id="opt-shuffle"' + (BROWSE_SHUFFLE ? ' checked' : '') + '> 隨機排序</label>' +
+            '<label class="scope-opt"><input type="checkbox" id="opt-unseen"' + (BROWSE_UNSEEN ? ' checked' : '') + '> 只出沒做過的</label>' +
+          '</div>' +
           '<button class="btn btn-primary" id="exam-start">開始瀏覽</button>'
         : '<div class="empty-state" style="padding:20px 0;">考古題資料還沒上架。</div>') +
         (STATE.versionGapNotes.length ?
@@ -1807,12 +1810,56 @@ table.admin-table tr:last-child td{border-bottom:none;}
       renderExamSetup();
     });
 
+    wrap.querySelectorAll('.scope-mode-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        BROWSE_MODE = btn.getAttribute('data-mode');
+        renderExamSetup();
+      });
+    });
+
+    var sel = document.getElementById('exam-year');
+    var shuffleBox = document.getElementById('opt-shuffle');
+    var unseenBox = document.getElementById('opt-unseen');
+
+    /* 每個範圍「做過幾題／還沒做幾題」，選單一換就重算。這是站上「記得我做到哪裡」
+       真正的呈現：它是從 attempts 導出來的，所以 87 個範圍全部自動有，跳題、換
+       裝置、換題庫都不會失準。 */
+    function refreshStat(){
+      var el = document.getElementById('scope-stat');
+      if(!el || !sel) return;
+      var pool = examPoolFor(sel.value);
+      if(!eid){
+        el.innerHTML = '這個範圍共 <b>' + pool.length + '</b> 題。設定工號之後這裡會顯示你做過幾題。';
+        return;
+      }
+      var seen = answeredIdSet(eid);
+      var done = pool.filter(function(q){ return seen[q.id]; }).length;
+      var left = pool.length - done;
+      el.innerHTML = '這個範圍共 <b>' + pool.length + '</b> 題：做過 <b>' + done +
+        '</b>、還沒做 <b>' + left + '</b>' +
+        (left === 0 && pool.length ? '（整批都做過了，勾「只出沒做過的」會是空的）' : '');
+    }
+    if(sel) sel.addEventListener('change', refreshStat);
+    refreshStat();
+
+    if(shuffleBox) shuffleBox.addEventListener('change', function(){ BROWSE_SHUFFLE = shuffleBox.checked; });
+    if(unseenBox) unseenBox.addEventListener('change', function(){ BROWSE_UNSEEN = unseenBox.checked; });
+
     var startBtn = document.getElementById('exam-start');
     if(startBtn){
       startBtn.addEventListener('click', function(){
-        var y = document.getElementById('exam-year').value;
-        var pool = examPoolFor(y);
+        var pool = examPoolFor(sel.value);
+        if(BROWSE_UNSEEN && eid){
+          var seen = answeredIdSet(eid);
+          var unseen = pool.filter(function(q){ return !seen[q.id]; });
+          if(!unseen.length){
+            window.alert('這個範圍你每一題都做過了。取消「只出沒做過的」就能重看一遍。');
+            return;
+          }
+          pool = unseen;
+        }
         if(!pool.length) return;
+        if(BROWSE_SHUFFLE) pool = shuffle(pool);
         vgnReturn = null; // a fresh browse must not offer a stale "back to the note"
         examBrowse = newBrowse(pool, 0, 0);
         saveBrowse();
@@ -1842,7 +1889,11 @@ table.admin-table tr:last-child td{border-bottom:none;}
          已經走過的題目會讓分母多算一題；為了逐題精確度去加一張表不值得。 */
       baseRight: score || 0,
       baseDone: score ? start : 0,
-      ephemeral: false
+      /* 兩個旗標是分開的，別合併：ephemeral 管「要不要存進度」，scored 管「要不要
+         顯示分數與結算」。重測錯題兩者不同（要計分但不該存），從版本落差筆記跳過來
+         查一題則兩者都關掉。 */
+      ephemeral: false,
+      scored: true
     };
   }
   function browseScore(){
@@ -1865,9 +1916,9 @@ table.admin-table tr:last-child td{border-bottom:none;}
     return Object.keys(q.options || {}).sort();
   }
 
-  /* normalize an exam_questions row into the shape renderQuizLive/answerQuiz
-     expect, so wrong exam questions can sit in the same 錯題 list and be
-     retried through the ordinary quiz UI.
+  /* 把 exam_questions 的一列攤平成共通的 quiz 形狀，讓考古題能跟章節題、18 篇並列
+     在「我的紀錄」的錯題與收藏清單裡。**只用於顯示**——作答一律走 exam 形狀，見下面
+     answerIndex 上的說明。
 
      chapterId 取 miller_chapters 的**第一章**（詳解裡最先引用的那一章），再經
      chapter_taxonomy 翻成站上筆記 id。52 題跨章題（48 題跨 2 章、3 題跨 3 章、
@@ -1883,11 +1934,11 @@ table.admin-table tr:last-child td{border-bottom:none;}
       chapterId: chs.length ? millerChapterNote(chs[0]) : null,
       question: q.question,
       options: keys.map(function(k){ return q.options[k]; }),
+      /* answer 可能是 "AB" 這種複選／送分（線上實際有 9 題），這個形狀只留得住第一
+         個字母。**所以考古題不能用這個形狀來作答**——判對錯一律在 exam 形狀上用
+         q.answer.indexOf(選項) 比，完整字串還在。這個形狀現在只用於顯示（錯題與
+         收藏清單），顯示不碰答案，所以無損。 */
       answerIndex: firstCorrect ? keys.indexOf(firstCorrect) : -1,
-      /* answer 可能是 "AB" 這種複選／送分（線上實際有 9 題）。answerIndex 的語意
-         不動（既有比對邏輯都靠它），另外帶一份完整的正確選項索引給答題畫面用。 */
-      answerIndices: (q.answer || '').split('').map(function(c){ return keys.indexOf(c); })
-                       .filter(function(i){ return i >= 0; }),
       explanation: q.explanation,
       isExam: true,
       examTag: q.year + ' 年考古題 第 ' + q.question_no + ' 題'
@@ -2212,6 +2263,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
        原本存著的題目瀏覽進度洗掉。 */
     examBrowse = newBrowse(pool, idx, 0);
     examBrowse.ephemeral = true;
+    examBrowse.scored = false;
     renderExamLive();
   }
 
@@ -2226,7 +2278,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
       '<div class="exam-live">' +
         '<div class="exam-progress">' +
           '<span class="idx mono">第 ' + (examBrowse.idx+1) + ' / ' + examBrowse.list.length + ' 題</span>' +
-          (examBrowse.ephemeral ? '' :
+          (!examBrowse.scored ? '' :
             '<span class="score mono" title="答對 / 已作答">' + sc.right + ' / ' + sc.done + '</span>') +
           '<select class="exam-year-tag mono" id="exam-jump" title="跳到指定題目">' +
             examBrowse.list.map(function(item, i){
@@ -2249,7 +2301,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
           '<button class="btn btn-ghost" id="exam-prev"' + (examBrowse.idx === 0 ? ' disabled' : '') + '>上一題</button>' +
           (vgnReturn ? '<button class="btn btn-ghost" id="exam-vgn-back">&#8592; 回版本落差筆記</button>' : '') +
           '<button class="btn btn-ghost" id="exam-back">回選單</button>' +
-          (!examBrowse.ephemeral && sc.done ?
+          (examBrowse.scored && sc.done ?
             '<button class="btn btn-ghost" id="exam-finish">結算成績</button>' : '') +
           '<button class="btn btn-primary" id="exam-next"' + (examBrowse.idx >= examBrowse.list.length-1 ? ' disabled' : '') + '>下一題</button>' +
         '</div>' +
@@ -2332,7 +2384,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     var scEl = document.querySelector('.exam-progress .score');
     var sc = browseScore();
     if(scEl) scEl.textContent = sc.right + ' / ' + sc.done;
-    if(!examBrowse.ephemeral && !document.getElementById('exam-finish')){
+    if(examBrowse.scored && !document.getElementById('exam-finish')){
       var nav = document.querySelector('.exam-nav');
       var nextBtn = document.getElementById('exam-next');
       if(nav && nextBtn){
@@ -2531,11 +2583,17 @@ table.admin-table tr:last-child td{border-bottom:none;}
   }
 
   /* ---------- mine tab ---------- */
-  function startQuizWithPool(pool){
-    if(!pool.length) return;
-    quiz = { questions: shuffle(pool), idx: 0, score: 0, answered: false };
-    setTab('quiz');
-    renderQuizLive();
+  /* 「重測這些」走的也是考古題那個瀏覽器——站上現在只剩這一個作答介面。重測是臨時
+     的一輪：計分、可結算，但不存進度（ephemeral），才不會蓋掉使用者原本存著的
+     題庫瀏覽進度。錯題／收藏清單本來就隨時再算得出來，沒有記位置的必要。 */
+  function startBrowseWithPool(pool){
+    var items = browsePoolFromIds(pool.map(function(q){ return q.id; }));
+    if(!items.length) return;
+    vgnReturn = null;
+    examBrowse = newBrowse(shuffle(items), 0, 0);
+    examBrowse.ephemeral = true;
+    setTab('exam');
+    renderExamLive();
   }
 
   /* 哪幾個大類是展開的。renderMine() 在切分頁、重設基準、重測錯題之後都會整個
@@ -2671,9 +2729,9 @@ table.admin-table tr:last-child td{border-bottom:none;}
       '</div>';
 
     var retryWrongBtn = document.getElementById('retry-wrong');
-    if(retryWrongBtn) retryWrongBtn.addEventListener('click', function(){ startQuizWithPool(wrongQuestions); });
+    if(retryWrongBtn) retryWrongBtn.addEventListener('click', function(){ startBrowseWithPool(wrongQuestions); });
     var retryFavBtn = document.getElementById('retry-fav');
-    if(retryFavBtn) retryFavBtn.addEventListener('click', function(){ startQuizWithPool(favQuestions); });
+    if(retryFavBtn) retryFavBtn.addEventListener('click', function(){ startBrowseWithPool(favQuestions); });
     document.getElementById('reset-baseline').addEventListener('click', function(){
       resetBaseline(id, renderMine);
     });
