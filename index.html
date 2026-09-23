@@ -634,7 +634,57 @@ select.exam-year-tag{
 .cat-stat-notes .chapter-stat-row{font-size:12.5px;padding:4px 0;}
 .cat-stat-foot{font-size:11.5px;color:var(--ink-faint);margin-top:10px;}
 
+/* ---------- 關於麻專站 ---------- */
+#view-about{width:100%;overflow-y:auto;}
+.about-wrap{width:100%;}
+.about-inner{max-width:760px;margin:0 auto;padding:40px 24px 100px;}
+.about-inner h1{font-family:var(--font-display);font-weight:700;font-size:28px;margin:0 0 10px;color:var(--ink);}
+.about-inner h2{font-family:var(--font-display);font-weight:700;font-size:19px;margin:36px 0 12px;color:var(--ink);}
+.about-lede{color:var(--ink-dim);font-size:15px;margin:0 0 8px;}
+.about-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;}
+.about-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-card);padding:14px 16px;}
+.about-card h3{font-family:var(--font-display);font-size:15px;margin:0 0 5px;color:var(--ecg);}
+.about-card p{margin:0;font-size:13.5px;line-height:1.75;color:var(--ink-dim);}
+.about-tips{margin:0;padding-left:20px;}
+.about-tips li{margin:9px 0;font-size:14px;line-height:1.8;color:var(--ink-dim);}
+.about-tips b{color:var(--ink);}
+.changelog{display:flex;flex-direction:column;gap:2px;}
+.cl-entry{border-left:2px solid var(--line);padding:12px 0 12px 16px;}
+.cl-entry.big{border-left-color:var(--ecg);}
+.cl-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:10px;}
+.cl-date{font-size:12px;color:var(--ink-faint);letter-spacing:.04em;flex:none;}
+.cl-title{font-family:var(--font-display);font-weight:600;font-size:15px;color:var(--ink);}
+.cl-badge{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;flex:none;
+  color:var(--ink-on-accent);background:var(--ecg);border-radius:3px;padding:2px 7px;
+}
+.cl-items{margin:6px 0 0;padding-left:18px;}
+.cl-items li{margin:5px 0;font-size:13.5px;line-height:1.8;color:var(--ink-dim);}
+.cl-items b{color:var(--ink);}
+.about-foot{margin-top:36px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-faint);}
+
 /* ---------- admin tab ---------- */
+.admin-wrap h3{font-family:var(--font-display);font-size:16px;margin:30px 0 8px;color:var(--ink);}
+.admin-note{font-size:12.5px;line-height:1.7;color:var(--ink-faint);margin:0 0 12px;}
+.stat-tiles{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 6px;}
+.stat-tile{
+  flex:1 1 140px;min-width:0;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius-card);padding:14px 16px;
+}
+.stat-tile .n{font-size:26px;font-weight:600;color:var(--ecg);line-height:1.2;}
+.stat-tile .l{font-size:12.5px;color:var(--ink-dim);margin-top:2px;}
+.stat-tile .s{font-size:11px;color:var(--ink-faint);margin-top:2px;}
+.month-rows{display:flex;flex-direction:column;gap:2px;}
+.month-row{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:12.5px;}
+.month-row .mk{color:var(--ink-dim);flex:none;width:60px;}
+.month-row .bar{flex:1;min-width:40px;height:7px;border-radius:4px;background:var(--line-soft);overflow:hidden;}
+.month-row .bar-fill{height:100%;background:linear-gradient(90deg,var(--nibp),var(--resp) 50%,var(--ecg));}
+.month-row .v{width:54px;text-align:right;color:var(--ink-dim);flex:none;}
+.month-row .v2{width:64px;text-align:right;color:var(--ink-faint);flex:none;font-size:11.5px;}
+@media (max-width:640px){
+  .month-row{flex-wrap:wrap;}
+  .month-row .bar{order:9;flex-basis:100%;}
+}
 .admin-wrap{max-width:1080px;margin:0 auto;padding:32px 24px 80px;}
 .admin-gate{max-width:320px;margin:80px auto 0;display:flex;flex-direction:column;gap:12px;text-align:center;}
 .admin-gate h2{font-family:var(--font-display);font-size:18px;margin:0 0 4px;}
@@ -697,7 +747,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
   }
   function promptEmployeeId(){
     var cur = getEmployeeId();
-    var v = window.prompt("輸入你的工號（自訂即可，用來記錄你自己的收藏與作答紀錄）", cur || "");
+    var v = window.prompt("輸入你的奇美人事號\n\n用來記住你的收藏、錯題與作答進度。換裝置時輸入同一組就接得回來。", cur || "");
     if(v !== null){
       v = v.trim();
       setEmployeeId(v);
@@ -714,7 +764,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     var el = document.getElementById('id-badge');
     if(!el) return;
     var id = getEmployeeId();
-    el.textContent = id ? ("工號 " + id) : "設定工號";
+    el.textContent = id ? ("奇美人事號 " + id) : "設定奇美人事號";
     el.classList.toggle('unset', !id);
   }
 
@@ -1142,6 +1192,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
           '<button class="tab-btn" data-tab="papers2026">2026麻專18篇</button>' +
           '<button class="tab-btn" data-tab="mine">我的紀錄</button>' +
           '<button class="tab-btn" data-tab="add">新增內容</button>' +
+          '<button class="tab-btn" data-tab="about">關於</button>' +
           '<button class="tab-btn" data-tab="admin">後台</button>' +
         '</div>' +
         '<button class="id-badge" id="id-badge"></button>' +
@@ -1172,6 +1223,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
       '</div>' +
       '<div class="view" id="view-mine"><div class="mine-wrap" id="mine-wrap"></div></div>' +
       '<div class="view" id="view-add"><div class="add-wrap" id="add-wrap"></div></div>' +
+      '<div class="view" id="view-about"><div class="about-wrap" id="about-wrap"></div></div>' +
       '<div class="view" id="view-admin"><div class="admin-wrap" id="admin-wrap"></div></div>';
 
     document.querySelectorAll('.tab-btn').forEach(function(btn){
@@ -1216,7 +1268,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     document.querySelectorAll('.tab-btn').forEach(function(b){
       b.classList.toggle('active', b.getAttribute('data-tab') === tab);
     });
-    ['read','exam','oral','papers2026','mine','add','admin'].forEach(function(t){
+    ['read','exam','oral','papers2026','mine','add','about','admin'].forEach(function(t){
       document.getElementById('view-' + t).classList.toggle('active', t === tab);
     });
     if(tab === 'read') renderRead();
@@ -1225,7 +1277,116 @@ table.admin-table tr:last-child td{border-bottom:none;}
     if(tab === 'papers2026') renderPapers2026();
     if(tab === 'mine') renderMine();
     if(tab === 'add') renderAdd();
+    if(tab === 'about') renderAbout();
     if(tab === 'admin') renderAdmin();
+  }
+
+  /* ================= 關於麻專站 =================
+     兩塊：怎麼用（功能不講就沒人知道，例如「只出沒做過的」和落點可以點開），
+     以及做了什麼更新。更新紀錄的日期一律取自實際上線紀錄，不是憑印象寫的。
+
+     **加新功能上線時，記得在 CHANGELOG 最前面補一筆。** 寫給讀者看，不是寫給
+     工程師看：講這次他能多做什麼，不要出現檔名或函式名。影響使用方式的大改動
+     標 big:true，會顯示成重點樣式。 */
+  var CHANGELOG = [
+    { date: '2026-09-24', big: true, title: '後台改成教學與成果彙總；本頁上線', items: [
+      '後台不再只是一長串作答流水帳，改成看整體：使用概況、每月趨勢、各大類正確率、最多人答錯的題目。',
+      '後台原本只統計章節題，漏掉了考古題與 18 篇的作答，現在三個題庫都算進去。',
+      '筆記裡層次較深的條列本來全部被壓成同一層，現在最多可以呈現到第六層。',
+      '「工號」正式改名為「奇美人事號」。'
+    ]},
+    { date: '2026-09-23', big: true, title: '三個題庫合併成一個作答介面', items: [
+      '「測驗」分頁收起來了，原本的功能全部搬進「考古題」——現在歷屆考古題、章節筆記題庫、2026麻專18篇 共用同一個作答介面。',
+      '題目可以<b>依題庫</b>選，也可以<b>依 Miller 章節</b>選；照章節選的時候，同一章的考古題和筆記題會一起出現。',
+      '新增「隨機排序」與「只出沒做過的」，每個範圍還會顯示你做過幾題、還剩幾題。',
+      '作答會即時計分，隨時可以按「結算成績」看這一輪的正確率和答錯的題目。',
+      '落點分析改成先看十三大類，點開才看該類底下各篇筆記；600 題考古題也納入統計了。'
+    ]},
+    { date: '2026-09-22', title: '考古題詳解補上教科書原圖', items: [
+      '為引用到圖表的考古題補上 Miller 第十版的對應圖，答題後直接看得到。'
+    ]},
+    { date: '2026-09-15', title: '版本落差筆記與跳題選單', items: [
+      '考古題分頁加入「版本落差筆記」：第九版與第十版的差異、教科書前後矛盾、考題與原文不符之處。答題時該題若有相關紀錄，也會出現在詳解下方。',
+      '考古題可以用下拉選單直接跳到指定題目。',
+      '2026麻專18篇 的題目併入錯題、收藏與落點分析；考古題也補上了收藏功能。'
+    ]},
+    { date: '2026-09-13', big: true, title: '2026麻專18篇上線，全站換新配色', items: [
+      '新增「2026麻專18篇」分頁：18 篇論文的筆記（含 DOI 連結），每篇附模擬筆試與模擬口試。筆記內容由 謝孟勳 提供。',
+      '全站換成新的配色與字體，並支援深色模式。'
+    ]},
+    { date: '2026-09-12', title: '口試分頁上線', items: [
+      '新增「口試」分頁，收錄 91 組口試考古問答。'
+    ]},
+    { date: '2026-09-09', big: true, title: '歷屆考古題上線', items: [
+      '新增「考古題」分頁：2020–2025 年共 600 題，含詳解。',
+      '考古題答錯也會進入「我的紀錄」的錯題清單。'
+    ]},
+    { date: '2026-08-27', title: '個人紀錄功能', items: [
+      '設定人事號之後，收藏、錯題、落點統計與未完成的作答進度都會跟著你，換裝置也接得回來。',
+      '落點統計可以「重新開始這一輪」，把起算點移到現在，但不會刪掉任何作答紀錄。'
+    ]},
+    { date: '2026-08-25', big: true, title: '麻專站上線', items: [
+      '63 篇章節筆記與選擇題題庫。'
+    ]}
+  ];
+
+  function renderAbout(){
+    var wrap = document.getElementById('about-wrap');
+    var noteCount = allChapters().filter(function(c){
+      var b = c.blocks; return b && b.length;
+    }).length;
+    var qTotal = STATE.examQuestions.length + allQuestions().length + STATE.papers2026Quiz.length;
+
+    wrap.innerHTML =
+      '<div class="about-inner">' +
+        '<h1>關於麻專站</h1>' +
+        '<p class="about-lede">給麻醉專科考試準備用的線上筆記與題庫。' +
+          '目前收錄 ' + noteCount + ' 篇章節筆記、' + qTotal + ' 題選擇題（歷屆考古題 ' +
+          STATE.examQuestions.length + ' 題、章節筆記題庫 ' + allQuestions().length +
+          ' 題、2026麻專18篇 ' + STATE.papers2026Quiz.length + ' 題）、' +
+          STATE.oralQuestions.length + ' 組口試考古問答，以及 ' +
+          STATE.versionGapNotes.length + ' 則版本落差筆記。</p>' +
+
+        '<h2>這個網站怎麼用</h2>' +
+        '<div class="about-cards">' +
+          aboutCard('讀筆記', '依章節整理的筆記。<b>每篇筆記最後面直接附上該章的測驗題</b>，讀完馬上就能作答，不必跳到別的分頁。') +
+          aboutCard('考古題', '三個題庫共用的作答介面。上方可以切換<b>依題庫</b>或<b>依章節</b>選範圍——照章節選的時候，同一章的考古題和筆記題會一起出現。裡面還有「版本落差筆記」，整理第九版與第十版的差異。') +
+          aboutCard('口試', '口試考古問答，可以先自己想過再看參考答案。') +
+          aboutCard('2026麻專18篇', '18 篇論文的重點筆記，每篇附模擬筆試與模擬口試。') +
+          aboutCard('我的紀錄', '你的錯題、收藏與落點分析。落點先看十三大類，<b>點一下可以展開</b>該類底下各篇筆記的正確率。') +
+          aboutCard('新增內容', '自己補章節或題目。新增的內容所有人都看得到。') +
+        '</div>' +
+
+        '<h2>幾個不講就不會發現的功能</h2>' +
+        '<ul class="about-tips">' +
+          '<li><b>設定奇美人事號</b>（右上角）之後，收藏、錯題、落點與作答進度才會被記住。換裝置輸入同一組就接得回來。</li>' +
+          '<li><b>「只出沒做過的」</b>——考古題分頁的選項，跳過你已經答過的題目。這比記住「上次做到第幾題」可靠，因為它不綁批次，跳題也不會失準。</li>' +
+          '<li><b>「隨機排序」</b>——不想照年度題號順序作答時勾它。</li>' +
+          '<li><b>「結算成績」</b>——作答途中隨時可以按，看這一輪的正確率與答錯的題目，點一下還能跳回那一題。</li>' +
+          '<li><b>題目右上角的星星</b>可以收藏，收藏的題目在「我的紀錄」可以整批重測。</li>' +
+          '<li><b>跳題選單</b>——作答畫面上方那個下拉選單可以直接跳到指定題目。</li>' +
+          '<li><b>中途離開會記住進度</b>，下次回到考古題分頁就會問你要不要接著做。</li>' +
+          '<li><b>深色模式</b>——右上角的圖示可以切換，也會跟著系統設定走。</li>' +
+        '</ul>' +
+
+        '<h2>做了什麼更新</h2>' +
+        '<div class="changelog">' + CHANGELOG.map(function(e){
+          return '<div class="cl-entry' + (e.big ? ' big' : '') + '">' +
+            '<div class="cl-head"><span class="mono cl-date">' + esc(e.date) + '</span>' +
+              '<span class="cl-title">' + esc(e.title) + '</span>' +
+              (e.big ? '<span class="cl-badge">大更新</span>' : '') + '</div>' +
+            '<ul class="cl-items">' + e.items.map(function(t){
+              return '<li>' + t + '</li>';
+            }).join('') + '</ul>' +
+          '</div>';
+        }).join('') + '</div>' +
+
+        '<div class="about-foot">筆記與題庫仍在持續修訂中。發現內容有誤，或有想補的東西，直接跟站長說。</div>' +
+      '</div>';
+  }
+
+  function aboutCard(name, desc){
+    return '<div class="about-card"><h3>' + esc(name) + '</h3><p>' + desc + '</p></div>';
   }
 
   /* ---------- read tab ---------- */
@@ -1797,7 +1958,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
             '<label class="scope-opt"><input type="checkbox" id="opt-shuffle"' + (BROWSE_SHUFFLE ? ' checked' : '') + '>' +
               '<span class="t">隨機排序<em>打亂出題順序。不勾就照年度題號或章節順序出題。</em></span></label>' +
             '<label class="scope-opt"><input type="checkbox" id="opt-unseen"' + (BROWSE_UNSEEN ? ' checked' : '') + '>' +
-              '<span class="t">只出沒做過的<em>跳過你作答過的題目。認的是工號，換裝置也記得。</em></span></label>' +
+              '<span class="t">只出沒做過的<em>跳過你作答過的題目。認的是奇美人事號，換裝置也記得。</em></span></label>' +
           '</div>' +
           '<button class="btn btn-primary" id="exam-start">開始瀏覽</button>' +
           '<div class="ctl-hint">作答會即時計分，上方隨時看得到「答對／已作答」。' +
@@ -1851,7 +2012,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
       if(!el || !sel) return;
       var pool = examPoolFor(sel.value);
       if(!eid){
-        el.innerHTML = '這個範圍共 <b>' + pool.length + '</b> 題。設定工號之後這裡會顯示你做過幾題。';
+        el.innerHTML = '這個範圍共 <b>' + pool.length + '</b> 題。設定奇美人事號之後這裡會顯示你做過幾題。';
         return;
       }
       var seen = answeredIdSet(eid);
@@ -2653,7 +2814,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     if(!id){
       wrap.innerHTML =
         '<div class="empty-state" style="margin:60px auto;text-align:center;">' +
-          '尚未設定工號。<br><button class="btn btn-primary" style="margin-top:14px;" id="mine-set-id">設定工號</button>' +
+          '尚未設定奇美人事號。<br><button class="btn btn-primary" style="margin-top:14px;" id="mine-set-id">設定奇美人事號</button>' +
         '</div>';
       document.getElementById('mine-set-id').addEventListener('click', function(){ promptEmployeeId(); renderMine(); });
       return;
@@ -2750,7 +2911,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     }
 
     wrap.innerHTML =
-      '<h2>我的紀錄 <span class="mono" style="color:var(--ink-faint);font-size:13px;">工號 ' + esc(id) + '</span></h2>' +
+      '<h2>我的紀錄 <span class="mono" style="color:var(--ink-faint);font-size:13px;">奇美人事號 ' + esc(id) + '</span></h2>' +
       '<div class="mine-overall">整體作答 <b class="mono">' + totalCorrect + ' / ' + totalAnswered + '</b>' +
         (totalAnswered ? '（' + Math.round(totalCorrect/totalAnswered*100) + '%）' : '') + '</div>' +
       '<div class="mine-grid">' +
@@ -2818,43 +2979,145 @@ table.admin-table tr:last-child td{border-bottom:none;}
       return;
     }
 
-    var qById = {};
-    allQuestions().forEach(function(q){ qById[q.id] = q; });
+    /* 後台的兩個用途（使用者 2026-09-24 定的）：教學用要知道「大家哪裡弱」，成果
+       發表要整體數字。所以主畫面一律是彙總，個人只留最後一張摘要表。
 
-    var byUser = {};
-    STATE.attempts.forEach(function(a){
-      byUser[a.employee_id] = byUser[a.employee_id] || { total: 0, correct: 0, last: a.answered_at };
-      byUser[a.employee_id].total++;
-      if(a.is_correct) byUser[a.employee_id].correct++;
-      if(new Date(a.answered_at) > new Date(byUser[a.employee_id].last)) byUser[a.employee_id].last = a.answered_at;
+       原本這裡只讀 STATE.attempts，漏掉了考古題與 2026麻專18篇 的作答——那是
+       兩倍以上的資料量，等於後台一直只看到全部作答的三分之一。改用 allAttempts()。 */
+    var atts = allAttempts();
+    var qById = quizIndexById();
+
+    var people = {}, months = {}, byQ = {}, byCat = {};
+    var catName = {}, catOrder = {};
+    STATE.chapterCategories.forEach(function(c){ catName[c.id] = c.name; catOrder[c.id] = c.sort_order; });
+
+    atts.forEach(function(a){
+      var p = people[a.employee_id] || (people[a.employee_id] = { total: 0, correct: 0, last: a.answered_at });
+      p.total++; if(a.is_correct) p.correct++;
+      if(new Date(a.answered_at) > new Date(p.last)) p.last = a.answered_at;
+
+      var mk = String(a.answered_at).slice(0, 7); // YYYY-MM
+      var m = months[mk] || (months[mk] = { total: 0, correct: 0, people: {} });
+      m.total++; if(a.is_correct) m.correct++; m.people[a.employee_id] = true;
+
+      var qs = byQ[a.question_id] || (byQ[a.question_id] = { total: 0, correct: 0 });
+      qs.total++; if(a.is_correct) qs.correct++;
+
+      var q = qById[a.question_id];
+      var ch = q ? findChapter(q.chapterId) : null;
+      var cid = (ch && ch.category_id) ? ch.category_id : null;
+      if(cid){
+        var c = byCat[cid] || (byCat[cid] = { total: 0, correct: 0 });
+        c.total++; if(a.is_correct) c.correct++;
+      }
     });
-    var users = Object.keys(byUser).sort(function(a,b){ return byUser[b].total - byUser[a].total; });
 
-    var log = STATE.attempts.slice().sort(function(a,b){ return new Date(b.answered_at) - new Date(a.answered_at); }).slice(0, 300);
+    var users = Object.keys(people).sort(function(a, b){ return people[b].total - people[a].total; });
+    var totalAtt = atts.length;
+    var totalRight = atts.filter(function(a){ return a.is_correct; }).length;
+    var distinctQ = Object.keys(byQ).length;
+    var bankTotal = STATE.examQuestions.length + allQuestions().length + STATE.papers2026Quiz.length;
+    var lastAt = atts.reduce(function(acc, a){
+      return (!acc || new Date(a.answered_at) > new Date(acc)) ? a.answered_at : acc;
+    }, null);
+
+    function tile(n, label, sub){
+      return '<div class="stat-tile"><div class="n mono">' + n + '</div><div class="l">' + label + '</div>' +
+        (sub ? '<div class="s">' + sub + '</div>' : '') + '</div>';
+    }
+    function pctBar(pct){
+      return '<div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div>';
+    }
+
+    /* 成果發表用：整體規模。人數刻意不列名字。 */
+    var overview =
+      '<h3>整體概況</h3>' +
+      '<div class="stat-tiles">' +
+        tile(users.length, '使用人數') +
+        tile(totalAtt, '總作答次數') +
+        tile(totalAtt ? Math.round(totalRight / totalAtt * 100) + '%' : '—', '整體正確率') +
+        tile(distinctQ, '被作答過的題目', '題庫共 ' + bankTotal + ' 題') +
+      '</div>' +
+      (lastAt ? '<div class="admin-note">最近一次作答：' + esc(new Date(lastAt).toLocaleString('zh-TW')) + '</div>' : '');
+
+    /* 成果發表用：有沒有在成長。按月看比按日穩定，資料少的時候也還讀得出趨勢。 */
+    var mKeys = Object.keys(months).sort();
+    var mMax = mKeys.reduce(function(a, k){ return Math.max(a, months[k].total); }, 0);
+    var trend =
+      '<h3>每月作答趨勢</h3>' +
+      (mKeys.length ?
+        '<div class="month-rows">' + mKeys.map(function(k){
+          var m = months[k];
+          var pct = Math.round(m.correct / m.total * 100);
+          return '<div class="month-row">' +
+            '<span class="mono mk">' + esc(k) + '</span>' +
+            '<div class="bar"><div class="bar-fill" style="width:' + Math.round(m.total / mMax * 100) + '%"></div></div>' +
+            '<span class="mono v">' + m.total + ' 題</span>' +
+            '<span class="mono v2">' + Object.keys(m.people).length + ' 人</span>' +
+            '<span class="mono v2">正確 ' + pct + '%</span>' +
+          '</div>';
+        }).join('') + '</div>'
+        : '<div class="empty-state" style="padding:14px 0;">尚無資料</div>');
+
+    /* 教學用：哪一類大家最弱。跟「我的紀錄」的落點同一套分類，但這裡是所有人合計。 */
+    var catRows = Object.keys(byCat).map(function(cid){
+      var c = byCat[cid];
+      return { id: cid, name: catName[cid] || cid, order: catOrder[cid] == null ? 999 : catOrder[cid],
+               total: c.total, correct: c.correct, pct: Math.round(c.correct / c.total * 100) };
+    }).sort(function(a, b){ return a.pct - b.pct || a.order - b.order; });
+    var weak =
+      '<h3>各大類正確率（全部人合計，由低到高）</h3>' +
+      '<div class="admin-note">最上面幾類就是教學最該補的地方。題數太少的那幾列參考價值不高。</div>' +
+      (catRows.length ?
+        catRows.map(function(s){
+          return '<div class="chapter-stat-row"><span class="t">' + esc(s.name) + '</span>' +
+            pctBar(s.pct) + '<span class="mono pct">' + s.pct + '%</span>' +
+            '<span class="mono n">' + s.correct + '/' + s.total + '</span></div>';
+        }).join('')
+        : '<div class="empty-state" style="padding:14px 0;">尚無資料</div>');
+
+    /* 教學用：大家都答錯的題目。低正確率有兩種可能——題目真的難，或題目本身有問題；
+       後者靠這張表才抓得出來。門檻設 3 次是為了濾掉只有一個人答過一次的雜訊。 */
+    var MIN_ATT = 3, HARD_PCT = 50;
+    var hard = Object.keys(byQ).map(function(qid){
+      var s = byQ[qid];
+      return { id: qid, total: s.total, correct: s.correct, pct: Math.round(s.correct / s.total * 100) };
+    }).filter(function(s){ return s.total >= MIN_ATT && s.pct < HARD_PCT; })
+      .sort(function(a, b){ return a.pct - b.pct || b.total - a.total; })
+      .slice(0, 25);
+    var hardHtml =
+      '<h3>最多人答錯的題目</h3>' +
+      '<div class="admin-note">至少被作答 ' + MIN_ATT + ' 次、正確率低於 ' + HARD_PCT + '% 的題目，最多列 25 題。' +
+        '正確率特別低的題目值得回頭看一眼——有可能是題目或詳解本身有問題。</div>' +
+      (hard.length ?
+        '<div class="table-wrap"><table class="admin-table">' +
+          '<thead><tr><th>正確率</th><th>作答次數</th><th>來源</th><th>題目</th></tr></thead><tbody>' +
+          hard.map(function(s){
+            var q = qById[s.id];
+            var ch = q ? findChapter(q.chapterId) : null;
+            var tag = (q && q.examTag) || (ch ? ch.title : '');
+            return '<tr><td class="mono">' + s.pct + '%</td><td class="mono">' + s.total + '</td>' +
+              '<td>' + esc(tag) + '</td><td>' + esc(q ? q.question : s.id) + '</td></tr>';
+          }).join('') + '</tbody></table></div>'
+        : '<div class="empty-state" style="padding:14px 0;">還沒有題目達到門檻</div>');
+
+    /* 個人摘要留著——這是使用者原本做後台的目的。但只到摘要為止，不再列逐筆流水帳：
+       那張表幫不上教學也幫不上發表，卻把每個人答錯哪一題攤在別人面前。 */
+    var perPerson =
+      '<h3>個人摘要</h3>' +
+      '<div class="table-wrap"><table class="admin-table">' +
+        '<thead><tr><th>奇美人事號</th><th>已答題數</th><th>答對數</th><th>正確率</th><th>最近作答</th></tr></thead>' +
+        '<tbody>' + (users.length ? users.map(function(u){
+          var s = people[u];
+          return '<tr><td class="mono">' + esc(u) + '</td><td class="mono">' + s.total + '</td><td class="mono">' + s.correct + '</td>' +
+            '<td class="mono">' + Math.round(s.correct / s.total * 100) + '%</td>' +
+            '<td class="mono">' + esc(new Date(s.last).toLocaleString('zh-TW')) + '</td></tr>';
+        }).join('') : '<tr><td colspan="5" class="empty-state">目前還沒有任何作答紀錄</td></tr>') + '</tbody>' +
+      '</table></div>';
 
     wrap.innerHTML =
       '<div class="admin-bar"><h2>後台：作答情形</h2><button class="btn btn-ghost" id="admin-lock">鎖定</button></div>' +
-      '<div class="table-wrap"><table class="admin-table">' +
-        '<thead><tr><th>工號</th><th>已答題數</th><th>答對數</th><th>正確率</th><th>最近作答</th></tr></thead>' +
-        '<tbody>' + (users.length ? users.map(function(u){
-          var s = byUser[u];
-          return '<tr><td class="mono">' + esc(u) + '</td><td class="mono">' + s.total + '</td><td class="mono">' + s.correct + '</td>' +
-            '<td class="mono">' + Math.round(s.correct/s.total*100) + '%</td><td class="mono">' + esc(new Date(s.last).toLocaleString('zh-TW')) + '</td></tr>';
-        }).join('') : '<tr><td colspan="5" class="empty-state">目前還沒有任何作答紀錄</td></tr>') + '</tbody>' +
-      '</table></div>' +
-      '<h3 style="margin-top:28px;">最近作答紀錄（最多300筆）</h3>' +
-      '<div class="table-wrap"><table class="admin-table">' +
-        '<thead><tr><th>時間</th><th>工號</th><th>章節</th><th>題目</th><th>結果</th></tr></thead>' +
-        '<tbody>' + (log.length ? log.map(function(a){
-          var q = qById[a.question_id];
-          var ch = q ? findChapter(q.chapterId) : null;
-          return '<tr><td class="mono">' + esc(new Date(a.answered_at).toLocaleString('zh-TW')) + '</td>' +
-            '<td class="mono">' + esc(a.employee_id) + '</td>' +
-            '<td>' + esc(ch ? ch.title : '') + '</td>' +
-            '<td>' + esc(q ? q.question : a.question_id) + '</td>' +
-            '<td>' + (a.is_correct ? '<span class="pill-ok">正確</span>' : '<span class="pill-bad">錯誤</span>') + '</td></tr>';
-        }).join('') : '<tr><td colspan="5" class="empty-state">尚無資料</td></tr>') + '</tbody>' +
-      '</table></div>';
+      overview + trend + weak + hardHtml + perPerson;
 
     document.getElementById('admin-lock').addEventListener('click', function(){
       try { sessionStorage.removeItem(ADMIN_SESSION_KEY); } catch(e){}
