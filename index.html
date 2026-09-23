@@ -384,10 +384,18 @@ mark{background:var(--mark-bg);color:var(--ink);padding:1px 4px;border-radius:3p
 .scope-mode-btn.active{background:var(--nibp);color:var(--panel);}
 .scope-stat{font-size:12.5px;color:var(--ink-faint);margin:-8px 0 14px;line-height:1.7;}
 .scope-stat b{color:var(--ink-dim);font-family:var(--font-mono);}
-.scope-opts{display:flex;flex-wrap:wrap;gap:18px;margin:0 0 18px;}
-.scope-opt{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-dim);cursor:pointer;
+.scope-opts{display:flex;flex-direction:column;gap:12px;margin:0 0 20px;}
+.scope-opt{display:flex;align-items:flex-start;gap:9px;font-size:13.5px;color:var(--ink);cursor:pointer;
   text-transform:none;letter-spacing:normal;font-family:inherit;margin-bottom:0;}
-.scope-opt input{accent-color:var(--nibp);width:15px;height:15px;cursor:pointer;}
+.scope-opt input{accent-color:var(--nibp);width:15px;height:15px;cursor:pointer;flex:none;margin-top:3px;}
+.scope-opt .t{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.scope-opt em{font-style:normal;font-size:12px;line-height:1.6;color:var(--ink-faint);}
+/* 控制項底下的小字說明 */
+.ctl-hint{font-size:12px;line-height:1.65;color:var(--ink-faint);margin:-4px 0 16px;}
+.ctl-hint b{color:var(--ink-dim);font-weight:600;}
+.resume-card .ctl-hint{margin:10px 0 0;}
+.mine-card .ctl-hint{margin:-6px 0 10px;}
+.exam-nav-hint{margin:12px 0 0;text-align:right;}
 .exam-setup select{
   width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
   padding:10px;border-radius:var(--radius-ctl);font-size:14px;margin-bottom:16px;
@@ -1737,8 +1745,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
       '<div class="exam-setup">' +
         '<h2>題目瀏覽</h2>' +
         '<p class="exam-scope-hint">歷屆考古題、章節筆記題庫、2026麻專18篇 三個題庫共用這個瀏覽器。' +
-        '範圍可以<b>依題庫</b>選，也可以<b>依 Miller 章節</b>選——同一章的考古題與筆記題會一起出現。' +
-        '作答會即時計分、隨時可以按「結算成績」；作答紀錄一律進「我的紀錄」的錯題、收藏與落點分析。</p>' +
+        '不管從哪一批作答，紀錄都會進「我的紀錄」的錯題、收藏與落點分析。</p>' +
         (saved ?
           '<div class="resume-card">' +
             '<div>上次的「' + esc(browseSourceLabel(savedPool)) + '」還沒看完：第 <b>' +
@@ -1748,20 +1755,31 @@ table.admin-table tr:last-child td{border-bottom:none;}
               '<button class="btn btn-primary" id="exam-resume">繼續上次的進度</button>' +
               '<button class="btn btn-ghost" id="exam-discard">放棄，重新選</button>' +
             '</div>' +
+            '<div class="ctl-hint">「放棄」只是清掉這個書籤，' +
+              '之前答過的紀錄、錯題與收藏都不會動。</div>' +
           '</div>' : '') +
         (total ?
+          '<label>分類方式</label>' +
           '<div class="scope-mode" role="group" aria-label="分類方式">' +
             '<button type="button" class="scope-mode-btn' + (BROWSE_MODE === 'bank' ? ' active' : '') + '" data-mode="bank">依題庫</button>' +
             '<button type="button" class="scope-mode-btn' + (BROWSE_MODE === 'chapter' ? ' active' : '') + '" data-mode="chapter">依章節</button>' +
           '</div>' +
+          '<div class="ctl-hint">' + (BROWSE_MODE === 'chapter'
+            ? '照 Miller 第十版的章節選。同一章的考古題和筆記題會<b>一起出現</b>，' +
+              '詳解引用到多章的題目在每一章都看得到。'
+            : '照三個題庫各自的分法選：考古題分年度、筆記題分篇章、18篇分論文。') + '</div>' +
           '<label>題庫範圍</label>' +
           '<select id="exam-year">' + options + '</select>' +
           '<div class="scope-stat" id="scope-stat"></div>' +
           '<div class="scope-opts">' +
-            '<label class="scope-opt"><input type="checkbox" id="opt-shuffle"' + (BROWSE_SHUFFLE ? ' checked' : '') + '> 隨機排序</label>' +
-            '<label class="scope-opt"><input type="checkbox" id="opt-unseen"' + (BROWSE_UNSEEN ? ' checked' : '') + '> 只出沒做過的</label>' +
+            '<label class="scope-opt"><input type="checkbox" id="opt-shuffle"' + (BROWSE_SHUFFLE ? ' checked' : '') + '>' +
+              '<span class="t">隨機排序<em>打亂出題順序。不勾就照年度題號或章節順序出題。</em></span></label>' +
+            '<label class="scope-opt"><input type="checkbox" id="opt-unseen"' + (BROWSE_UNSEEN ? ' checked' : '') + '>' +
+              '<span class="t">只出沒做過的<em>跳過你作答過的題目。認的是工號，換裝置也記得。</em></span></label>' +
           '</div>' +
-          '<button class="btn btn-primary" id="exam-start">開始瀏覽</button>'
+          '<button class="btn btn-primary" id="exam-start">開始瀏覽</button>' +
+          '<div class="ctl-hint">作答會即時計分，上方隨時看得到「答對／已作答」。' +
+            '中途離開會記住進度，下次回到這頁可以接著做。</div>'
         : '<div class="empty-state" style="padding:20px 0;">考古題資料還沒上架。</div>') +
         (STATE.versionGapNotes.length ?
           '<div class="exam-vgn-entry">' +
@@ -2215,7 +2233,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
     document.getElementById('vgn-back').addEventListener('click', renderExamSetup);
 
     /* coming back from a question: put the reader back on the finding they left
-       from, not at the top of a 77-entry page */
+       from, not at the top of a page that lists every entry (the entry count
+       moves as findings get added or retracted, so don't quote it here) */
     if(scrollToId){
       var target = document.getElementById('vgn-entry-' + scrollToId);
       if(target){
@@ -2280,6 +2299,16 @@ table.admin-table tr:last-child td{border-bottom:none;}
           (examBrowse.scored && sc.done ?
             '<button class="btn btn-ghost" id="exam-finish">結算成績</button>' : '') +
           '<button class="btn btn-primary" id="exam-next"' + (examBrowse.idx >= examBrowse.list.length-1 ? ' disabled' : '') + '>下一題</button>' +
+        '</div>' +
+        /* 三種情境的說明要分開講，否則會對使用者說謊：一般瀏覽會存進度，重測錯題
+           計分但不存，從版本落差筆記跳過來查一題則兩者都不做。 */
+        '<div class="ctl-hint exam-nav-hint">' +
+          (!examBrowse.scored
+            ? '這是從版本落差筆記跳過來查的單題，不計分，也不會影響你存著的瀏覽進度。'
+            : examBrowse.ephemeral
+              ? '「結算成績」看這一輪的正確率與答錯的題目。重測不另外存進度，離開就結束這一輪，但作答紀錄照常留著。'
+              : '「結算成績」看這一輪的正確率與答錯的題目，看完可以回到原本那一題。' +
+                '「回選單」會保留進度，下次進來接得下去。') +
         '</div>' +
       '</div>';
 
@@ -2689,17 +2718,22 @@ table.admin-table tr:last-child td{border-bottom:none;}
           '<div class="baseline-note">' + (baseline ? '統計區間：' + esc(new Date(baseline).toLocaleString('zh-TW')) + ' 之後' : '統計區間：從第一次作答至今') + '</div>' +
           (catStats.length ?
             '<div class="cat-stat-list">' + catStats.map(catStatHtml).join('') + '</div>' +
-            '<div class="cat-stat-foot">點一下大類可以展開該類底下各篇筆記的正確率。</div>'
+            '<div class="cat-stat-foot">點一下大類可以展開該類底下各篇筆記的正確率。' +
+              '百分比後面是「答對／已作答」的實際題數，題數太少的那幾列參考價值不高。<br>' +
+              '「重新開始這一輪」只是把統計的起算點移到現在，作答紀錄、錯題和收藏都不會刪掉。</div>'
             : '<div class="empty-state" style="padding:14px 0;">' + (baseline ? '這一輪還沒有作答紀錄' : '還沒有作答紀錄') + '</div>') +
         '</div>' +
         '<div class="mine-card">' +
           '<div class="mine-card-head"><h3>錯題（' + wrongQuestions.length + '）</h3>' +
             (wrongQuestions.length ? '<button class="btn btn-ghost" id="retry-wrong">重測這些</button>' : '') + '</div>' +
+          '<div class="ctl-hint">最近一次答錯的題目。答對了就會自動從這裡消失。' +
+            '「重測這些」會把它們打散後送進題目瀏覽器，計分但不另外存進度。</div>' +
           qList(wrongQuestions) +
         '</div>' +
         '<div class="mine-card">' +
           '<div class="mine-card-head"><h3>收藏（' + favQuestions.length + '）</h3>' +
             (favQuestions.length ? '<button class="btn btn-ghost" id="retry-fav">重測這些</button>' : '') + '</div>' +
+          '<div class="ctl-hint">作答時按題目右上角的星星就會收藏。再按一次取消。</div>' +
           qList(favQuestions) +
         '</div>' +
       '</div>';
