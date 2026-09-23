@@ -489,7 +489,7 @@ select.exam-year-tag{
   border-radius:var(--radius-ctl);padding:4px 10px;font-size:11px;cursor:pointer;
 }
 .vgn-jump:hover{color:var(--ink);border-color:var(--ink-faint);}
-/* brief marker on the entry the reader just came back to, so a 77-entry page
+/* brief marker on the entry the reader just came back to, so a long list
    doesn't leave them hunting for where they were */
 .vgn-returned{box-shadow:0 0 0 2px var(--ecg);}
 
@@ -2301,14 +2301,17 @@ table.admin-table tr:last-child td{border-bottom:none;}
           '<button class="btn btn-primary" id="exam-next"' + (examBrowse.idx >= examBrowse.list.length-1 ? ' disabled' : '') + '>下一題</button>' +
         '</div>' +
         /* 三種情境的說明要分開講，否則會對使用者說謊：一般瀏覽會存進度，重測錯題
-           計分但不存，從版本落差筆記跳過來查一題則兩者都不做。 */
+           計分但不存，從版本落差筆記跳過來查一題則兩者都不做。
+           三段都要講到作答紀錄：examAnswerPick() 是無條件寫 attempts 的（只擋送分
+           題與沒設工號），ephemeral / scored 都不守這道門。隔壁兩段有寫「紀錄照常
+           留著」而這段沒寫的話，使用者會反推成「這條不會留」，剛好推反。 */
         '<div class="ctl-hint exam-nav-hint">' +
           (!examBrowse.scored
-            ? '這是從版本落差筆記跳過來查的單題，不計分，也不會影響你存著的瀏覽進度。'
+            ? '這是從版本落差筆記跳過來查的單題，不計分，也不會影響你存著的瀏覽進度；但作答紀錄照常留著。'
             : examBrowse.ephemeral
               ? '「結算成績」看這一輪的正確率與答錯的題目。重測不另外存進度，離開就結束這一輪，但作答紀錄照常留著。'
               : '「結算成績」看這一輪的正確率與答錯的題目，看完可以回到原本那一題。' +
-                '「回選單」會保留進度，下次進來接得下去。') +
+                '「回選單」會保留進度，下次進來接得下去；作答紀錄也一樣會留著。') +
         '</div>' +
       '</div>';
 
