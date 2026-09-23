@@ -226,11 +226,31 @@ hr.content-divider{border:none;border-top:2px dashed var(--line);margin:40px 0;}
 }
 .block-li .bullet{flex:none;color:var(--sec-accent,var(--ecg));font-family:var(--font-mono);padding-top:2px;}
 .block-li .txt{flex:1;min-width:0;}
+/* 縮排層級。筆記實際最深到第 10 層，但原本 CSS 只定義到 3、JS 又把更深的一律
+   夾成 3，所以 753 個項目（約 18%）看起來跟第 3 層一模一樣，讀者分不出誰屬於誰。
+   改成支援到第 6 層（第 4 層有 562 項、第 5 層 103 項，第 6 層以上合計只有 88 項，
+   夾在 6 不會再損失結構）。每層的增量刻意遞減，否則手機上第 6 層會被擠到沒地方
+   放字。 */
 .block-li.indent-0{margin-left:0;}
 .block-li.indent-1{margin-left:22px;}
-.block-li.indent-2{margin-left:44px;}
-.block-li.indent-3{margin-left:66px;}
-.block-li.indent-1 .bullet,.block-li.indent-2 .bullet,.block-li.indent-3 .bullet{color:var(--spo2);opacity:.8;}
+.block-li.indent-2{margin-left:40px;}
+.block-li.indent-3{margin-left:56px;}
+.block-li.indent-4{margin-left:70px;}
+.block-li.indent-5{margin-left:82px;}
+.block-li.indent-6{margin-left:92px;}
+.block-li.indent-1 .bullet,.block-li.indent-2 .bullet,.block-li.indent-3 .bullet,
+.block-li.indent-4 .bullet,.block-li.indent-5 .bullet,.block-li.indent-6 .bullet{color:var(--spo2);opacity:.8;}
+/* 光靠縮排在窄螢幕上不夠分辨層級，所以項目符號也隨深度變化 */
+.block-li.indent-2 .bullet,.block-li.indent-5 .bullet{opacity:.65;}
+.block-li.indent-3 .bullet,.block-li.indent-6 .bullet{opacity:.5;}
+@media (max-width:640px){
+  .block-li.indent-1{margin-left:14px;}
+  .block-li.indent-2{margin-left:26px;}
+  .block-li.indent-3{margin-left:36px;}
+  .block-li.indent-4{margin-left:44px;}
+  .block-li.indent-5{margin-left:50px;}
+  .block-li.indent-6{margin-left:55px;}
+}
 
 .block-quote{
   margin:16px 0;padding:12px 14px;background:var(--resp-soft);
@@ -913,7 +933,9 @@ table.admin-table tr:last-child td{border-bottom:none;}
       if(b.type === "img") return '<figure class="block-img"><img src="' + esc(b.path) + '" alt="筆記附圖" loading="lazy">' +
         (b.caption ? '<figcaption>' + b.caption.split("\n").map(function(l){ return inline(l); }).join('<br>') + '</figcaption>' : '') +
         '</figure>';
-      if(b.type === "li") return '<div class="block-li indent-' + Math.min(b.indent,3) + '"><span class="bullet">&#9656;</span><span class="txt">' + inline(b.text) + '</span></div>';
+      /* 夾到 6：筆記最深有 10 層，但第 7 層以上合計只有 50 個項目，再往下給縮排
+         在手機上會擠掉正文寬度。CSS 對應定義到 indent-6。 */
+      if(b.type === "li") return '<div class="block-li indent-' + Math.min(b.indent,6) + '"><span class="bullet">&#9656;</span><span class="txt">' + inline(b.text) + '</span></div>';
       if(b.type === "table"){
         var thead = b.headerRow ? '<thead><tr>' + b.headerRow.map(function(c){ return '<th>' + inline(c) + '</th>'; }).join('') + '</tr></thead>' : '';
         var rows = b.rows.map(function(r){
