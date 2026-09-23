@@ -1889,11 +1889,16 @@ table.admin-table tr:last-child td{border-bottom:none;}
          已經走過的題目會讓分母多算一題；為了逐題精確度去加一張表不值得。 */
       baseRight: score || 0,
       baseDone: score ? start : 0,
-      /* 兩個旗標是分開的，別合併：ephemeral 管「要不要存進度」，scored 管「要不要
-         顯示分數與結算」。重測錯題兩者不同（要計分但不該存），從版本落差筆記跳過來
-         查一題則兩者都關掉。 */
+      /* 三個旗標各管一件事，不要合併——之前把「存進度」和「顯示分數」綁在同一個
+         旗標上，重測錯題需要「計分但不存」時就得拆開，這裡不再重蹈覆轍：
+           ephemeral 要不要存續作進度
+           scored    要不要顯示分數與結算
+           records   要不要把作答寫進 attempts（錯題、落點分析、做過統計）
+         一般瀏覽三者全開；重測錯題計分也記錄但不存進度；從版本落差筆記跳過來查
+         一題則三者全關——那是查閱，不是測驗。 */
       ephemeral: false,
-      scored: true
+      scored: true,
+      records: true
     };
   }
   function browseScore(){
@@ -2265,6 +2270,10 @@ table.admin-table tr:last-child td{border-bottom:none;}
     examBrowse = newBrowse(pool, idx, 0);
     examBrowse.ephemeral = true;
     examBrowse.scored = false;
+    /* 從筆記跳過來是查閱：使用者剛讀完這題的討論才點進來，答對幾乎是必然的。
+       記錄的話會讓落點分析的正確率虛高，還會把這題標成「做過」，於是「只出沒
+       做過的」以後永遠不會再拿出來——76 則筆記指向 84 題，不是小數目。 */
+    examBrowse.records = false;
     renderExamLive();
   }
 
@@ -2308,12 +2317,12 @@ table.admin-table tr:last-child td{border-bottom:none;}
         '</div>' +
         /* 三種情境的說明要分開講，否則會對使用者說謊：一般瀏覽會存進度，重測錯題
            計分但不存，從版本落差筆記跳過來查一題則兩者都不做。
-           三段都要講到作答紀錄：examAnswerPick() 是無條件寫 attempts 的（只擋送分
-           題與沒設工號），ephemeral / scored 都不守這道門。隔壁兩段有寫「紀錄照常
-           留著」而這段沒寫的話，使用者會反推成「這條不會留」，剛好推反。 */
+           三段都要明講作答紀錄怎麼處理：前兩條會寫 attempts、第三條不會（records
+           旗標）。只要有一段沒講，使用者就會拿另外兩段去反推，而且會推反。 */
         '<div class="ctl-hint exam-nav-hint">' +
           (!examBrowse.scored
-            ? '這是從版本落差筆記跳過來查的單題，不計分，也不會影響你存著的瀏覽進度；但作答紀錄照常留著。'
+            ? '這是從版本落差筆記跳過來查的單題，目的是對照著看，所以不計分，' +
+              '作答也不會記進錯題與落點分析，更不會影響你存著的瀏覽進度。'
             : examBrowse.ephemeral
               ? '「結算成績」看這一輪的正確率與答錯的題目。重測不另外存進度，離開就結束這一輪，但作答紀錄照常留著。'
               : '「結算成績」看這一輪的正確率與答錯的題目，看完可以回到原本那一題。' +
@@ -2382,14 +2391,16 @@ table.admin-table tr:last-child td{border-bottom:none;}
     examBrowse.picked[q.id] = picked;
     if(!q.void){
       var correct = !!(q.answer && q.answer.indexOf(picked) !== -1);
-      examBrowse.results[q.id] = correct;
-      if(q._source){
+      examBrowse.results[q.id] = correct; // 本輪自己的計分，只活在記憶體裡
+      if(examBrowse.records){
         /* 章節題與 18 篇要記進各自的 attempts 表，recordAttempt() 會依 _orig 上的
            isPapers2026 旗標路由；考古題維持原本直接寫 exam_attempts 的路徑，
            連送出的 selected_key 都不變。 */
-        recordAttempt(q._orig, examOptionKeys(q).indexOf(picked), correct);
-      } else {
-        recordExamAttempt(q, picked, correct);
+        if(q._source){
+          recordAttempt(q._orig, examOptionKeys(q).indexOf(picked), correct);
+        } else {
+          recordExamAttempt(q, picked, correct);
+        }
       }
     }
     saveBrowse();
