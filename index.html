@@ -739,21 +739,51 @@ table.admin-table tr:last-child td{border-bottom:none;}
   var EMPLOYEE_ID_KEY = "mazhuan_employee_id";
   var ADMIN_SESSION_KEY = "mazhuan_admin_ok";
 
+  /* 人事號限定 6 碼英數。加這道限制是因為身分是自己輸入的，沒有格式約束的話資料
+     裡會混進暱稱，之後要拿作答統計對外講就得先花力氣清。一律轉大寫，免得同一個人
+     打 a90803 和 A90803 被當成兩個人。
+
+     ㄑㄑ 是唯一的例外：那是站上早期就在用的暱稱，使用者指定它對應到 A90803，
+     所以兩邊輸入都會存成 A90803（線上那 913 列舊資料也已一併改名）。 */
+  var EMPLOYEE_ID_RE = /^[A-Za-z0-9]{6}$/;
+  var EMPLOYEE_ALIASES = { "ㄑㄑ": "A90803" };
+
+  function normalizeEmployeeId(v){
+    v = String(v == null ? "" : v).trim();
+    if(!v) return null;
+    if(EMPLOYEE_ALIASES[v]) return EMPLOYEE_ALIASES[v];
+    var up = v.toUpperCase();
+    return EMPLOYEE_ID_RE.test(up) ? up : null;
+  }
+
   function getEmployeeId(){
-    try { return localStorage.getItem(EMPLOYEE_ID_KEY) || ""; } catch(e){ return ""; }
+    var v;
+    try { v = localStorage.getItem(EMPLOYEE_ID_KEY) || ""; } catch(e){ return ""; }
+    /* 舊暱稱直接換成對應的人事號並寫回去，使用者不必重新設定。只處理別名——其他
+       不合新格式的舊值原樣放行，寧可留著也不要把誰的身分洗掉。 */
+    if(EMPLOYEE_ALIASES[v]){
+      v = EMPLOYEE_ALIASES[v];
+      setEmployeeId(v);
+    }
+    return v;
   }
   function setEmployeeId(v){
     try { localStorage.setItem(EMPLOYEE_ID_KEY, v); } catch(e){}
   }
   function promptEmployeeId(){
     var cur = getEmployeeId();
-    var v = window.prompt("輸入你的奇美人事號\n\n用來記住你的收藏、錯題與作答進度。換裝置時輸入同一組就接得回來。", cur || "");
-    if(v !== null){
-      v = v.trim();
-      setEmployeeId(v);
-      renderTopbarId();
+    var msg = "輸入你的奇美人事號（6 碼英文或數字）\n\n用來記住你的收藏、錯題與作答進度。換裝置時輸入同一組就接得回來。";
+    while(true){
+      var v = window.prompt(msg, cur || "");
+      if(v === null) return getEmployeeId();   // 取消就維持原狀
+      var norm = normalizeEmployeeId(v);
+      if(norm){
+        setEmployeeId(norm);
+        renderTopbarId();
+        return norm;
+      }
+      msg = "「" + String(v).trim() + "」不是有效的奇美人事號。\n\n請輸入 6 碼英文或數字（例如 A90803）。";
     }
-    return getEmployeeId();
   }
   function ensureEmployeeId(){
     var id = getEmployeeId();
