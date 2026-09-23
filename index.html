@@ -1796,11 +1796,17 @@ table.admin-table tr:last-child td{border-bottom:none;}
     if(resumeBtn) resumeBtn.addEventListener('click', function(){
       vgnReturn = null;
       examBrowse = newBrowse(savedPool, saved.idx, saved.score);
+      /* 立刻存一次，讓進度馬上落在 'browse' 那一列。接的若是測驗分頁留下的舊
+         'chapter' 列，舊列就不再是唯一的副本了；兩列並存時讀取一律以 browse 優先。 */
+      saveBrowse();
       renderExamLive();
     });
     var discardBtn = document.getElementById('exam-discard');
     if(discardBtn) discardBtn.addEventListener('click', function(){
+      /* 兩個來源都要清。只清 browse 的話，測驗分頁留下的舊 chapter 列會在重畫後
+         立刻遞補上來，使用者會看到「放棄」之後卡片沒消失、還換成一份更舊的進度。 */
       clearSession(eid, SESSION_BROWSE);
+      clearSession(eid, SESSION_CHAPTER);
       renderExamSetup();
     });
 
