@@ -634,6 +634,41 @@ select.exam-year-tag{
 .cat-stat-notes .chapter-stat-row{font-size:12.5px;padding:4px 0;}
 .cat-stat-foot{font-size:11.5px;color:var(--ink-faint);margin-top:10px;}
 
+/* ---------- 專屬連結：進站的那道門 ---------- */
+.gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.gate-card{
+  max-width:460px;width:100%;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius-card);padding:30px 28px;
+}
+.gate-brand{
+  font-family:var(--font-display);font-weight:700;font-size:17px;color:var(--ink);
+  display:flex;align-items:baseline;gap:8px;margin-bottom:18px;
+}
+.gate-brand .pulse{color:var(--ecg);font-size:14px;}
+.gate-card h1{font-family:var(--font-display);font-size:21px;margin:0 0 12px;color:var(--ink);}
+.gate-card p{margin:0 0 12px;font-size:14px;line-height:1.8;color:var(--ink-dim);}
+.gate-card p b{color:var(--ink);}
+.gate-actions{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 0;}
+.gate-actions input{
+  flex:1;min-width:150px;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+  padding:10px 12px;border-radius:var(--radius-ctl);font-size:14px;
+}
+.gate-status{font-size:13px;color:var(--nibp);margin-top:10px;min-height:1em;}
+.gate-foot{margin-top:18px;padding-top:14px;border-top:1px solid var(--line-soft);
+  font-size:12px;color:var(--ink-faint);}
+.grant-new{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px;}
+.grant-new input{
+  background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+  padding:9px 11px;border-radius:var(--radius-ctl);font-size:13.5px;
+}
+.grant-new input:first-child{flex:0 1 190px;}
+.grant-new input:nth-child(2){flex:1 1 200px;}
+.grant-link{
+  width:100%;margin:8px 0 4px;font-family:var(--font-mono);font-size:12px;
+  background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+  border-radius:var(--radius-ctl);padding:9px 11px;resize:vertical;
+}
+
 /* ---------- 關於麻專站 ---------- */
 #view-about{width:100%;overflow-y:auto;}
 .about-wrap{width:100%;}
@@ -734,7 +769,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
   var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92ZXV1a21sZm1kZGFuend1d2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2NDA4ODIsImV4cCI6MjEwMzIxNjg4Mn0.eazZ272x7UsLcD1YvfMI19SB9i5B6XDQfV93H5c2vsQ";
 
   /* ================= data & state ================= */
-  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [], examAttempts: [], oralQuestions: [], paperNotes2026: [], papers2026Quiz: [], papers2026Oral: [], papers2026Attempts: [], versionGapNotes: [], chapterTaxonomy: [], chapterCategories: [] };
+  var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [], examAttempts: [], oralQuestions: [], paperNotes2026: [], papers2026Quiz: [], papers2026Oral: [], papers2026Attempts: [], versionGapNotes: [], chapterTaxonomy: [], chapterCategories: [], accessGrants: [] };
   var ADMIN_PASSPHRASE = "cmh7760";
   var EMPLOYEE_ID_KEY = "mazhuan_employee_id";
   var ADMIN_SESSION_KEY = "mazhuan_admin_ok";
@@ -863,6 +898,18 @@ table.admin-table tr:last-child td{border-bottom:none;}
     });
   }
 
+  /* 更新既有的列。跟 sbUpsert 的差別是它不會在對不到時新建一列——存取名單只該
+     由站長產生，使用者點連結只能把既有的那一列標成已開通。 */
+  function sbPatch(table, query, row){
+    return fetch(SUPABASE_URL + "/rest/v1/" + table + "?" + query, {
+      method: "PATCH",
+      headers: sbHeaders({ "Prefer": "return=minimal" }),
+      body: JSON.stringify(row)
+    }).then(function(r){
+      if(!r.ok) throw new Error("更新失敗 (HTTP " + r.status + ")");
+    });
+  }
+
   function sbUpsert(table, row, conflictCol){
     return fetch(SUPABASE_URL + "/rest/v1/" + table + "?on_conflict=" + conflictCol, {
       method: "POST",
@@ -889,7 +936,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
       sbSelect("papers2026_attempts").catch(function(){ return []; }),
       sbSelect("version_gap_notes").catch(function(){ return []; }),
       sbSelect("chapter_taxonomy").catch(function(){ return []; }),
-      sbSelect("chapter_categories").catch(function(){ return []; })
+      sbSelect("chapter_categories").catch(function(){ return []; }),
+      sbSelect("access_grants").catch(function(){ return []; })
     ]).then(function(results){
       STATE.chapters = results[0];
       STATE.questions = results[1];
@@ -907,6 +955,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
       STATE.versionGapNotes = results[13];
       STATE.chapterTaxonomy = results[14];
       STATE.chapterCategories = results[15];
+      STATE.accessGrants = results[16];
       // 重新載入後要讓查表快取跟著重建
       TAXONOMY_BY_CHAPTER = null;
       CHAPTER_INDEX = null;
@@ -3145,14 +3194,83 @@ table.admin-table tr:last-child td{border-bottom:none;}
         }).join('') : '<tr><td colspan="5" class="empty-state">目前還沒有任何作答紀錄</td></tr>') + '</tbody>' +
       '</table></div>';
 
+    /* 存取名單。名單是空的時候這道門不生效，所以這裡要把狀態講清楚，否則站長
+       會以為已經鎖起來了。 */
+    var grants = STATE.accessGrants.slice().sort(function(a, b){
+      return String(a.employee_id).localeCompare(String(b.employee_id));
+    });
+    var accessHtml =
+      '<h3>專屬連結</h3>' +
+      '<div class="admin-note">' +
+        (accessConfigured()
+          ? '名單上有 ' + grants.length + ' 人，未在名單上的人打不開這個站。'
+          : '<b>名單是空的，所以這道門目前沒有生效</b>——現在任何人都進得來。加入第一個人之後才會開始擋。') +
+        '<br>這道門擋不住刻意繞過的人（前端驗證，看得懂原始碼就能跳過）。它的用途是讓「這不是公開網站」成為一件明確的事。' +
+      '</div>' +
+      '<div class="grant-new">' +
+        '<input type="text" id="grant-id" placeholder="奇美人事號（6 碼）" autocomplete="off" maxlength="12">' +
+        '<input type="text" id="grant-note" placeholder="這組給誰（選填）" autocomplete="off">' +
+        '<button class="btn btn-primary" id="grant-make">產生連結</button>' +
+      '</div>' +
+      '<div class="form-status" id="grant-status"></div>' +
+      '<div class="table-wrap"><table class="admin-table">' +
+        '<thead><tr><th>奇美人事號</th><th>給誰</th><th>狀態</th><th>發出時間</th></tr></thead>' +
+        '<tbody>' + (grants.length ? grants.map(function(g){
+          return '<tr><td class="mono">' + esc(g.employee_id) + '</td>' +
+            '<td>' + esc(g.note || '') + '</td>' +
+            '<td>' + (g.activated_at
+              ? '<span class="pill-ok">已開通</span>'
+              : '<span class="pill-bad">發了還沒用</span>') + '</td>' +
+            '<td class="mono">' + esc(g.granted_at ? new Date(g.granted_at).toLocaleDateString('zh-TW') : '') + '</td></tr>';
+        }).join('') : '<tr><td colspan="4" class="empty-state">名單是空的</td></tr>') + '</tbody>' +
+      '</table></div>';
+
     wrap.innerHTML =
       '<div class="admin-bar"><h2>後台：作答情形</h2><button class="btn btn-ghost" id="admin-lock">鎖定</button></div>' +
-      overview + trend + weak + hardHtml + perPerson;
+      overview + trend + weak + hardHtml + perPerson + accessHtml;
 
     document.getElementById('admin-lock').addEventListener('click', function(){
       try { sessionStorage.removeItem(ADMIN_SESSION_KEY); } catch(e){}
       renderAdmin();
     });
+
+    document.getElementById('grant-make').addEventListener('click', function(){
+      var id = normalizeEmployeeId(document.getElementById('grant-id').value);
+      var note = document.getElementById('grant-note').value.trim();
+      if(!id){ setStatus('grant-status', '請輸入 6 碼英文或數字的奇美人事號', false); return; }
+      if(accessGrantFor(id)){ setStatus('grant-status', id + ' 已經在名單上了', false); return; }
+      /* 憑證只在這裡出現這一次：資料庫存的是它的 SHA-256，之後任何人（包括站長）
+         都無法從資料庫還原出連結，弄丟了只能重發一組。 */
+      var token = randomToken();
+      sha256Hex(token).then(function(hash){
+        if(!hash) throw new Error('這個瀏覽器不支援產生憑證所需的加密功能');
+        return sbInsert('access_grants', {
+          employee_id: id, token_hash: hash, note: note || null
+        });
+      }).then(function(saved){
+        STATE.accessGrants.push(saved || { employee_id: id, token_hash: '', note: note || null,
+                                           granted_at: new Date().toISOString(), activated_at: null });
+        var link = window.location.origin + window.location.pathname +
+          '?' + ACCESS_PARAM_ID + '=' + encodeURIComponent(id) +
+          '&' + ACCESS_PARAM_TOKEN + '=' + encodeURIComponent(token);
+        renderAdmin();
+        var st = document.getElementById('grant-status');
+        st.className = 'form-status ok';
+        st.innerHTML = '<div>把這條連結傳給 ' + esc(note || id) + '：</div>' +
+          '<textarea class="grant-link" readonly rows="2" onclick="this.select()">' + esc(link) + '</textarea>' +
+          '<div class="admin-note">這條連結只會出現這一次。關掉就看不到了，弄丟只能重發一組。</div>';
+      }).catch(function(err){
+        setStatus('grant-status', err.message || '產生失敗', false);
+      });
+    });
+  }
+
+  /* 連結裡那組隨機碼。用瀏覽器的密碼學亂數，不是 Math.random。 */
+  function randomToken(){
+    var a = new Uint8Array(16);
+    if(window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(a);
+    else for(var i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 256);
+    return Array.prototype.map.call(a, function(b){ return ("0" + b.toString(16)).slice(-2); }).join("");
   }
 
   /* ---------- add tab ---------- */
@@ -3248,6 +3366,130 @@ table.admin-table tr:last-child td{border-bottom:none;}
   }
 
   /* ================= boot ================= */
+  /* ================= 專屬連結（存取控制） =================
+     使用者要把站從「公開網址、誰拿到連結都看得到」收成「發給特定人」。
+
+     **這擋不住有心人，而且是刻意接受的。** 前端驗證、anon key 公開，跟後台密語
+     同一個層級——任何人都能讀原始碼繞過去。它的價值不在技術，在於明確的意思
+     表示：有門、有名單、憑證進。「發了十條連結給特定同事」和「放在網路上任何人
+     都拿得到」在著作權上是不同的處境，而站上有 614 張教科書圖。
+
+     兩個設計決定：
+     1. **認人不認裝置。** 連結的作用是開通某個人事號，開通狀態存在資料庫。所以
+        換裝置只要輸入同一組人事號就進得來，不必再要一次連結。代價是知道別人
+        人事號的人可以冒用——對同事之間，人事號本來就不是秘密。
+     2. **讀不到名單就一律放行。** 名單讀取失敗、表還不存在、或表是空的，都當成
+        「這道門還沒啟用」。寧可放行，也不要因為一次網路失敗把所有人鎖在外面。
+        所以這段程式可以安全地先上線，等名單建好才開始生效。 */
+  var ACCESS_PARAM_ID = "u", ACCESS_PARAM_TOKEN = "k";
+
+  function accessConfigured(){
+    return !!(STATE.accessGrants && STATE.accessGrants.length);
+  }
+  function accessGrantFor(id){
+    if(!id) return null;
+    return STATE.accessGrants.filter(function(g){ return g.employee_id === id; })[0] || null;
+  }
+  function accessAllowed(){
+    if(!accessConfigured()) return true;          // 還沒啟用
+    var g = accessGrantFor(getEmployeeId());
+    return !!(g && g.activated_at);
+  }
+
+  /* SHA-256 走瀏覽器內建的 Web Crypto。舊瀏覽器沒有的話回傳 null，呼叫端會把
+     「算不出雜湊」當成驗證失敗——那比悄悄放行安全。 */
+  function sha256Hex(text){
+    if(!(window.crypto && window.crypto.subtle)) return Promise.resolve(null);
+    var bytes = new TextEncoder().encode(text);
+    return window.crypto.subtle.digest("SHA-256", bytes).then(function(buf){
+      return Array.prototype.map.call(new Uint8Array(buf), function(b){
+        return ("0" + b.toString(16)).slice(-2);
+      }).join("");
+    }).catch(function(){ return null; });
+  }
+
+  function readAccessParams(){
+    var q = {};
+    String(window.location.search || "").replace(/^\?/, "").split("&").forEach(function(kv){
+      if(!kv) return;
+      var i = kv.indexOf("=");
+      var k = decodeURIComponent(i < 0 ? kv : kv.slice(0, i));
+      var v = i < 0 ? "" : decodeURIComponent(kv.slice(i + 1).replace(/\+/g, " "));
+      q[k] = v;
+    });
+    var id = normalizeEmployeeId(q[ACCESS_PARAM_ID] || "");
+    var token = (q[ACCESS_PARAM_TOKEN] || "").trim();
+    return (id && token) ? { id: id, token: token } : null;
+  }
+
+  /* 把網址列上的參數清掉，免得使用者把整條含憑證的網址複製給別人、或留在瀏覽
+     紀錄裡。開通一次就夠了，之後直接輸入人事號即可。 */
+  function stripAccessParams(){
+    try {
+      if(window.history && window.history.replaceState){
+        window.history.replaceState({}, "", window.location.pathname + window.location.hash);
+      }
+    } catch(e){}
+  }
+
+  function tryActivateFromLink(){
+    var p = readAccessParams();
+    if(!p) return Promise.resolve(false);
+    var g = accessGrantFor(p.id);
+    if(!g) return Promise.resolve(false);
+    if(g.activated_at){                    // 已經開通過，連結只是重新綁定這台裝置
+      setEmployeeId(p.id);
+      stripAccessParams();
+      return Promise.resolve(true);
+    }
+    return sha256Hex(p.token).then(function(hash){
+      if(!hash || hash !== g.token_hash) return false;
+      var now = new Date().toISOString();
+      setEmployeeId(p.id);
+      g.activated_at = now;                // 先讓本次載入通過，寫入失敗也不擋人
+      stripAccessParams();
+      return sbPatch("access_grants", "employee_id=eq." + encodeURIComponent(p.id),
+                     { activated_at: now }).catch(function(){}).then(function(){ return true; });
+    });
+  }
+
+  function renderAccessGate(){
+    root.innerHTML =
+      '<div class="gate">' +
+        '<div class="gate-card">' +
+          '<div class="gate-brand"><span class="pulse">&#9673;</span> 麻專站</div>' +
+          '<h1>這個站需要專屬連結</h1>' +
+          '<p>站上的內容整理自教科書，所以不公開流通，只發給特定的人使用。</p>' +
+          '<p>如果你收過專屬連結，<b>直接點那條連結</b>就會開通。開通過之後換手機或電腦，' +
+            '只要輸入同一組奇美人事號就進得來，不必再要一次連結。</p>' +
+          '<div class="gate-actions">' +
+            '<input type="text" id="gate-id" placeholder="奇美人事號（6 碼）" autocomplete="off" maxlength="12">' +
+            '<button class="btn btn-primary" id="gate-go">我已經開通過</button>' +
+          '</div>' +
+          '<div class="gate-status" id="gate-status"></div>' +
+          '<div class="gate-foot">沒有連結的話，跟站長要一組。</div>' +
+        '</div>' +
+      '</div>';
+    var go = function(){
+      var v = normalizeEmployeeId(document.getElementById('gate-id').value);
+      var st = document.getElementById('gate-status');
+      if(!v){ st.textContent = '請輸入 6 碼英文或數字的奇美人事號。'; return; }
+      var g = accessGrantFor(v);
+      if(g && g.activated_at){
+        setEmployeeId(v);
+        renderShell();
+        setTab('read');
+        return;
+      }
+      st.textContent = g ? '這組人事號還沒開通，請先點你收到的專屬連結。'
+                         : '這組人事號不在名單上。跟站長確認一下。';
+    };
+    document.getElementById('gate-go').addEventListener('click', go);
+    document.getElementById('gate-id').addEventListener('keydown', function(e){
+      if(e.key === 'Enter') go();
+    });
+  }
+
   function boot(){
     root.innerHTML = '<div class="empty-state" style="margin:auto;">載入中…</div>';
     loadAll().then(function(){
@@ -3259,8 +3501,11 @@ table.admin-table tr:last-child td{border-bottom:none;}
           explanation: q.explanation
         };
       });
-      renderShell();
-      setTab('read');
+      return tryActivateFromLink().then(function(){
+        if(!accessAllowed()){ renderAccessGate(); return; }
+        renderShell();
+        setTab('read');
+      });
     }).catch(function(err){
       root.innerHTML = '<div class="empty-state" style="margin:auto;">資料載入失敗：' + esc(err.message) + '<br>請重新整理頁面再試一次。</div>';
     });
