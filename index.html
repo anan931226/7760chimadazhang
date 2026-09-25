@@ -3207,9 +3207,14 @@ table.admin-table tr:last-child td{border-bottom:none;}
           : '<b>名單是空的，所以這道門目前沒有生效</b>——現在任何人都進得來。加入第一個人之後才會開始擋。') +
         '<br>這道門擋不住刻意繞過的人（前端驗證，看得懂原始碼就能跳過）。它的用途是讓「這不是公開網站」成為一件明確的事。' +
       '</div>' +
+      /* 這張表是公開可讀的，備註欄等於公開端點。原本想用欄位層權限把 note 藏起來，
+         但那會讓整個 select=* 查詢失敗、名單變空、門靜默失效——安全措施反而把安全
+         機制關掉。所以只能靠使用方式解決：明講不要寫姓名，而不是用一個邀請人打
+         名字的提示字。 */
+      '<div class="admin-note">備註欄<b>是公開可讀的</b>，寫代號就好，不要寫姓名或其他個資。</div>' +
       '<div class="grant-new">' +
         '<input type="text" id="grant-id" placeholder="奇美人事號（6 碼）" autocomplete="off" maxlength="12">' +
-        '<input type="text" id="grant-note" placeholder="這組給誰（選填）" autocomplete="off">' +
+        '<input type="text" id="grant-note" placeholder="備註（公開可讀，別寫姓名）" autocomplete="off">' +
         '<button class="btn btn-primary" id="grant-make">產生連結</button>' +
       '</div>' +
       '<div class="form-status" id="grant-status"></div>' +
@@ -3256,7 +3261,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
         renderAdmin();
         var st = document.getElementById('grant-status');
         st.className = 'form-status ok';
-        st.innerHTML = '<div>把這條連結傳給 ' + esc(note || id) + '：</div>' +
+        st.innerHTML = '<div>把這條連結傳給 ' + esc(id) + '：</div>' +
           '<textarea class="grant-link" readonly rows="2" onclick="this.select()">' + esc(link) + '</textarea>' +
           '<div class="admin-note">這條連結只會出現這一次。關掉就看不到了，弄丟只能重發一組。</div>';
       }).catch(function(err){
