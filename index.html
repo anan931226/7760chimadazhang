@@ -1440,7 +1440,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
           aboutCard('口試', '口試考古問答，可以先自己想過再看參考答案。') +
           aboutCard('2026麻專18篇', '18 篇論文的重點筆記，每篇附模擬筆試與模擬口試。') +
           aboutCard('我的紀錄', '你的錯題、收藏與落點分析。落點先看十三大類，<b>點一下可以展開</b>該類底下各篇筆記的正確率。') +
-          aboutCard('新增內容', '自己補章節或題目。新增的內容所有人都看得到。') +
+          aboutCard('新增內容', '想補章節、補題目，或發現內容有錯，跟站長說。' +
+            '直接在網站上新增的功能已經關閉——這個站沒有登入機制，開著等於任何人都能寫進題庫。') +
           aboutCard('怎麼進站', '這個站不公開流通，要有<b>專屬連結</b>才進得來。' +
             '點過一次連結就開通了，之後換裝置只要輸入同一組<b>奇美人事號</b>即可，不必再要連結。' +
             '連結裡含憑證，請不要轉傳。') +
@@ -3303,95 +3304,27 @@ table.admin-table tr:last-child td{border-bottom:none;}
   }
 
   /* ---------- add tab ---------- */
+  /* 直接從瀏覽器新增內容的權限已經收回（2026-09-29）：網頁裡的 anon key 是公開的，
+     任何拿到它的人都能往 chapters / questions 寫入，而資料庫無從分辨那是不是站上的
+     使用者——大家共用同一把金鑰。既然資料庫擋掉了，這裡就不能再顯示一張送出去只會
+     收到 401 的表單。改成說明要怎麼投稿。要恢復線上新增，得先有真正的登入機制
+     （Supabase Auth），那時資料庫才知道「現在是誰」。 */
   function renderAdd(){
     var wrap = document.getElementById('add-wrap');
-    var chapterOptions = allChapters().slice().sort(function(a,b){ return (a.num||999)-(b.num||999); })
-      .map(function(c){ return '<option value="' + esc(c.id) + '">' + esc(c.title) + '</option>'; }).join('');
-
     wrap.innerHTML =
       '<div class="form-card">' +
-        '<h2>新增章節</h2>' +
-        '<p class="hint">支援簡易語法：<code># / ## / ###</code> 標題、<code>- </code> 項目符號（每兩個空格縮排一層）、<code>**粗體**</code>、<code>&gt; 提醒文字</code>、<code>|欄位|欄位|</code> 表格列。送出後所有人打開網站都會看到。</p>' +
-        '<div class="field"><label>章節標題</label><input type="text" id="new-chapter-title" placeholder="例如：Ch88 新章節主題"></div>' +
-        '<div class="field"><label>內容</label><textarea id="new-chapter-body" placeholder="## 小標題&#10;- 重點一&#10;- 重點二"></textarea></div>' +
-        '<button class="btn btn-primary" id="new-chapter-submit">新增章節</button>' +
-        '<div class="form-status" id="new-chapter-status"></div>' +
-      '</div>' +
-      '<div class="form-card">' +
-        '<h2>新增測驗題目</h2>' +
-        '<div class="field"><label>所屬章節</label><select id="new-q-chapter">' + chapterOptions + '</select></div>' +
-        '<div class="field"><label>題目</label><input type="text" id="new-q-text" placeholder="輸入題目敘述"></div>' +
-        '<div class="field"><label>選項（點選圓圈標記正確答案）</label>' +
-          [0,1,2,3].map(function(i){
-            return '<div class="opt-row"><input type="radio" name="new-q-answer" value="' + i + '"' + (i===0?' checked':'') + '><input type="text" id="new-q-opt-' + i + '" placeholder="選項 ' + String.fromCharCode(65+i) + '"></div>';
-          }).join('') +
-        '</div>' +
-        '<div class="field"><label>解析</label><textarea id="new-q-explain" style="min-height:90px;font-family:var(--font-body);"></textarea></div>' +
-        '<button class="btn btn-primary" id="new-q-submit">新增題目</button>' +
-        '<div class="form-status" id="new-q-status"></div>' +
+        '<h2>想補內容或回報錯誤</h2>' +
+        '<p class="hint">直接在網站上新增的功能已經關閉。原因是這個站沒有登入機制，' +
+          '網頁裡的資料庫金鑰是公開的，開著等於任何人都能寫進題庫。</p>' +
+        '<p class="hint"><b>要補章節、補題目，或發現內容有錯，直接跟站長說</b>，' +
+          '整理好就會更新上來。筆記與題庫本來就還在持續修訂中。</p>' +
       '</div>';
-
-    document.getElementById('new-chapter-submit').addEventListener('click', submitNewChapter);
-    document.getElementById('new-q-submit').addEventListener('click', submitNewQuestion);
   }
 
   function setStatus(elId, msg, ok){
     var s = document.getElementById(elId);
     s.textContent = msg;
     s.className = 'form-status ' + (ok ? 'ok' : 'err');
-  }
-
-  function submitNewChapter(){
-    var title = document.getElementById('new-chapter-title').value.trim();
-    var body = document.getElementById('new-chapter-body').value;
-    if(!title){ setStatus('new-chapter-status', '請填寫章節標題', false); return; }
-    var blocks = parseBody(body);
-    var btn = document.getElementById('new-chapter-submit');
-    btn.disabled = true;
-    setStatus('new-chapter-status', '儲存中…', true);
-    sbInsert('chapters', { id: uid('user-ch'), num: null, title: title, blocks: blocks })
-      .then(function(row){
-        STATE.chapters.push(row);
-        setStatus('new-chapter-status', '已新增，所有人都看得到了。', true);
-        document.getElementById('new-chapter-title').value = '';
-        document.getElementById('new-chapter-body').value = '';
-        renderAdd();
-      })
-      .catch(function(err){
-        setStatus('new-chapter-status', '儲存失敗：' + err.message, false);
-        btn.disabled = false;
-      });
-  }
-
-  function submitNewQuestion(){
-    var chapterId = document.getElementById('new-q-chapter').value;
-    var question = document.getElementById('new-q-text').value.trim();
-    var options = [0,1,2,3].map(function(i){ return document.getElementById('new-q-opt-' + i).value.trim(); });
-    var answerIndex = parseInt((document.querySelector('input[name=new-q-answer]:checked') || {}).value || '0', 10);
-    var explanation = document.getElementById('new-q-explain').value.trim();
-    if(!question || options.some(function(o){ return !o; })){
-      setStatus('new-q-status', '請填寫題目與全部四個選項', false); return;
-    }
-    var btn = document.getElementById('new-q-submit');
-    btn.disabled = true;
-    setStatus('new-q-status', '儲存中…', true);
-    sbInsert('questions', {
-      id: uid('user-q'), chapter_id: chapterId, question: question,
-      options: options, answer_index: answerIndex, explanation: explanation
-    }).then(function(row){
-      STATE.questions.push({
-        id: row.id, chapterId: row.chapter_id, question: row.question,
-        options: row.options, answerIndex: row.answer_index, explanation: row.explanation
-      });
-      setStatus('new-q-status', '已新增，所有人都看得到了。', true);
-      document.getElementById('new-q-text').value = '';
-      [0,1,2,3].forEach(function(i){ document.getElementById('new-q-opt-' + i).value = ''; });
-      document.getElementById('new-q-explain').value = '';
-      renderAdd();
-    }).catch(function(err){
-      setStatus('new-q-status', '儲存失敗：' + err.message, false);
-      btn.disabled = false;
-    });
   }
 
   /* ================= boot ================= */
