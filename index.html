@@ -851,18 +851,24 @@ table.admin-table tr:last-child td{border-bottom:none;}
       + (v[1] ? ", Ch." + v[1] : "") + (v[2] ? ", p." + v[2] : "");
   }
 
-  /* renderBlocks() 被章節筆記、callout 遞迴、2026麻專18篇三處共用。用模組變數而不是
-     加參數，是因為遞迴呼叫會自動沿用，不必逐層傳遞；代價是渲染完沒清掉就會外洩到
-     下一個呼叫者身上，所以 tests/test_imgcite.js 專門守這件事。
+  /* 章節筆記的 351 張圖**一張都不標**，而且刻意不留任何「從所在章節推導」的機制。
 
-     目前它永遠是空字串：章節筆記的圖**不做整章推導**。原因是實際開圖查證過——
-     ch45 的標題是「Ch41 Spinal, Epidural, and Caudal Anesthesia」（第十版章號），
-     但圖上印的是「TABLE 45.1」，也就是第九版第 45 章，跟 chapters.id 一致。
-     筆記內容已經對照到第十版，圖卻還是當年從第九版拍的，兩者版本不同步。
-     而且同一章裡還有明顯不是 Miller 的圖（一張 Circle of Willis 示意圖）。
-     用標題推導會把 351 張全部標成第十版，那是錯誤的歸屬——比不標更糟。
-     正確做法是依每張圖上實際印的編號逐張認定，那份清單還沒建立。 */
-  var BLOCK_IMG_CITE = "";
+     實際開圖查證過：ch45 的標題是「Ch41 Spinal, Epidural, and Caudal Anesthesia」
+     （第十版章號），圖上印的卻是「TABLE 45.1」——第九版第 45 章。筆記內容已經對照
+     到第十版，圖還是當年從第九版拍的。逐張清點的結果是：有印刷編號的 131 張裡，
+     對應第九版 126 張、對應第十版標題 0 張。
+
+     退一步改用 chapters.id 推第九版章號也不對：有 5 張是從別章借來的表（第九版
+     Ch79 加護醫學的 Table 79.1 同時被貼進 ch14 與 ch54）。所以問題不在於用標題還是
+     用 id——**圖的來源章與它被貼在哪一章沒有必然關係**，任何整章推導都必然錯一部分。
+
+     另外還有至少 26 張根本不是 Miller：© CardioServ、NYSORA 浮水印、ASER 指引、
+     帶插畫家簽名的外部投影片，以及自製的中文表格。最後一類標成 Miller 更糟——
+     那是本站自己的著作。
+
+     錯誤歸屬比沒有標注嚴重：前者是對第三方作者的錯誤宣稱，後者只是自己沒盡到
+     §64 的義務。正確做法是依每張圖實際印的編號逐張認定，清單見
+     restructure/chapter_image_numbers.tsv（131 張）與各章 out/<id>.json 的 notes。 */
   var ADMIN_SESSION_KEY = "mazhuan_admin_ok";
 
   /* 人事號限定 6 碼英數。加這道限制是因為身分是自己輸入的，沒有格式約束的話資料
@@ -1151,7 +1157,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
       if(b.type === "link") return '<div class="block-link"><a href="' + esc(b.url) + '" target="_blank" rel="noopener">' + inline(b.text) + '</a></div>';
       if(b.type === "divider") return '<hr class="content-divider">';
       if(b.type === "img"){
-        var cite = millerCite(b.path) || BLOCK_IMG_CITE;
+        var cite = millerCite(b.path);
         return '<figure class="block-img"><img src="' + esc(b.path) + '" alt="筆記附圖" loading="lazy">' +
           (b.caption ? '<figcaption>' + b.caption.split("\n").map(function(l){ return inline(l); }).join('<br>') + '</figcaption>' : '') +
           (cite ? '<div class="img-cite">' + esc(cite) + '</div>' : '') +
