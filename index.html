@@ -212,6 +212,58 @@ input,textarea,select{font-family:inherit;}
 .chapter-credit{font-size:12px;color:var(--ink-faint);margin:-10px 0 18px;}
 .content-inner hr.divider{border:none;border-top:1px solid var(--line);margin:0 0 28px;}
 
+/* ---------- 章節內導覽（目錄） ----------
+   寬螢幕：右側固定欄，捲動時高亮目前所在的節。
+   窄螢幕：改成右下角浮動按鈕 + 展開面板——不跟 #view-read 的 flex 排版打架。 */
+#view-read .block-h2,#view-read .block-h3,#view-read .block-h4{scroll-margin-top:12px;}
+.toc-rail{
+  width:216px;flex:none;
+  border-left:1px solid var(--line);
+  background:var(--panel);
+  max-height:calc(100vh - 56px);
+  display:flex;flex-direction:column;
+  font-family:var(--font-ui);
+}
+.toc-head{
+  padding:13px 14px 9px;border-bottom:1px solid var(--line);
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-dim);display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.toc-toggle{display:none;}
+.toc-list{list-style:none;margin:0;padding:8px 6px 20px;overflow-y:auto;}
+.toc-item{margin:0;}
+.toc-item a{
+  display:block;padding:5px 9px;border-radius:7px;
+  font-size:12.5px;line-height:1.45;color:var(--ink-dim);text-decoration:none;
+  border-left:2px solid transparent;
+  overflow-wrap:anywhere;
+}
+.toc-item a:hover{background:var(--panel-2);color:var(--ink);}
+.toc-item.sub a{padding-left:20px;font-size:11.5px;opacity:.8;}
+.toc-item.top a{font-weight:700;color:var(--ink);}
+.toc-item a.active{background:var(--panel-2);color:var(--ink);border-left-color:var(--ecg);font-weight:600;}
+/* 搜尋命中的節：搜尋原本只告訴你哪一篇有，進來還是得自己找 */
+.toc-item.hit a::after{content:"●";color:var(--spo2);font-size:8px;margin-left:5px;vertical-align:middle;}
+
+@media (max-width:1099px){
+  .toc-rail{
+    position:fixed;right:14px;bottom:14px;z-index:30;
+    width:auto;max-width:min(78vw,300px);max-height:none;
+    border:1px solid var(--line);border-radius:12px;
+    box-shadow:0 6px 22px rgba(0,0,0,.18);
+  }
+  .toc-head{border-bottom:none;padding:0;}
+  .toc-head > span{display:none;}
+  .toc-toggle{
+    display:block;padding:9px 15px;border:none;border-radius:11px;cursor:pointer;
+    background:var(--panel);color:var(--ink);font-family:var(--font-ui);font-size:12.5px;
+  }
+  .toc-list{display:none;}
+  .toc-rail.open{max-height:min(62vh,460px);}
+  .toc-rail.open .toc-head{border-bottom:1px solid var(--line);padding:6px;}
+  .toc-rail.open .toc-list{display:block;max-height:calc(min(62vh,460px) - 46px);}
+}
+
 .block-h2{font-family:var(--font-display);font-weight:700;font-size:21px;color:var(--ink);margin:30px 0 12px;text-wrap:balance;}
 hr.content-divider{border:none;border-top:2px dashed var(--line);margin:40px 0;}
 .block-h3{
@@ -320,6 +372,10 @@ hr.content-divider{border:none;border-top:2px dashed var(--line);margin:40px 0;}
 .block-img{margin:18px 0;padding:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius-ctl);text-align:center;}
 .block-img img{max-width:100%;height:auto;border-radius:3px;display:inline-block;}
 .block-img figcaption{margin-top:8px;font-size:11.5px;line-height:1.6;color:var(--ink-dim);text-align:left;}
+/* 圖片出處（著作權法 §64）。刻意做得小而安靜——它是必須存在的標注，不是內容，
+   不該跟圖說搶注意力，但也不能小到看不見。 */
+.img-cite{margin-top:6px;font-family:var(--mono);font-size:10.5px;line-height:1.5;
+  color:var(--ink-dim);opacity:.75;text-align:left;letter-spacing:.01em;}
 
 .table-wrap{overflow-x:auto;margin:16px 0;border:1px solid var(--line);border-radius:var(--radius-ctl);}
 table.block-table{border-collapse:collapse;width:100%;font-size:13.5px;}
@@ -772,6 +828,41 @@ table.admin-table tr:last-child td{border-bottom:none;}
   var STATE = { chapters: [], questions: [], attempts: [], favorites: [], baselines: [], sessions: [], examQuestions: [], examAttempts: [], oralQuestions: [], paperNotes2026: [], papers2026Quiz: [], papers2026Oral: [], papers2026Attempts: [], versionGapNotes: [], chapterTaxonomy: [], chapterCategories: [], accessGrants: [] };
   var ADMIN_PASSPHRASE = "cmh7760";
   var EMPLOYEE_ID_KEY = "mazhuan_employee_id";
+
+  /* ---------- 圖片出處（著作權法 §64「應明示其出處」）----------
+     站上的圖片檔名是內容雜湊值，看檔案本身回推不出來源，所以出處只能從兩個地方來：
+
+       考古題詳解圖：build 時由 m10_image_log.json 產生的對照表（路徑 -> [章, 頁]），
+                     這是唯一能回推到頁的依據。
+       章節筆記圖：  沒有任何來源紀錄，只能由筆記標題裡的第十版章號推到「章」的層級。
+
+     口試圖（58 張）與 2026麻專18篇的圖（21 張）**刻意不標**：它們不是取自 Miller，
+     來源分別是歷年口試素材與論文附圖，標成教科書出處會是錯的歸屬。 */
+  /* 對照表的值是 [版次, 章號 或 null, 頁碼]。版次必須跟著每一張圖走，不能整批假設：
+     同一筆紀錄裡 path 是第十版的裁圖、m9_image 是第九版的同一張表，頁碼完全不同
+     （例如第十版 p.1221 對第九版 p.1366）。第九版那幾張沒有記到章號，就只標到頁，
+     不要借用第十版的章號湊一個看起來完整的出處。 */
+  var IMG_SOURCES = {"images/d80298daad47372f0d9f5c19eaee6ce7.webp":[10,39,1221],"images/9865d6fdd0324d1d06346e36b267e55f.webp":[9,null,1366],"images/60e09e78291a24628f41628156965a88.webp":[10,37,1159],"images/18f2a42f70e003f9db8614cd169fd9c7.webp":[10,58,1889],"images/41d5ae4b3c8b787e88651ed1e51a5cf8.webp":[9,null,2011],"images/d7ef087f30d085b2a91f20fd9d32364c.webp":[10,48,1495],"images/140d1aad796ab0bb9f1f8863d72fa261.webp":[10,49,1541],"images/c900df261fba8fbc0b68709a29ffd849.webp":[10,12,250],"images/b4dc135b1cd05954567ec346d7d559b7.webp":[10,12,269],"images/da30436a7415eeffcc022ca11c777a4e.webp":[10,76,2501],"images/fd702c4555db4a9c99c06bf2991108ab.webp":[10,65,2089],"images/0e3a8002cb8fda95cf4824ddd7d695b3.webp":[10,82,2620],"images/ac9c057e98f5dd71ae22072410ef2bb7.webp":[10,50,1580],"images/19bd34fb850129cb9584129a97296529.webp":[10,50,1604],"images/49d96145c08e41afa8f4edd0ffb5ac59.webp":[10,50,1598],"images/69636d58a1141515dcb0b3f56c718c9c.webp":[10,58,1887],"images/1d9097ec79fc25fa99b9ac38c6addf8e.webp":[10,72,2269],"images/af81abf53bd5461ab8b52e0acba4715a.webp":[10,72,2281],"images/9e74fef853f74ae686441e54f143a652.webp":[10,55,1805],"images/3981bb1981f72f99302e4f518232b9fb.webp":[10,41,1287],"images/fd9f6cb789444475bd44e8816e45b8c5.webp":[10,25,756],"images/160896cae94417e439837fc99248c361.webp":[10,41,1287],"images/3f95d2bff3e04b36b257a17d21b7bf4b.webp":[10,45,1398],"images/09337cbe7dce15bf5b3bf7a94a3294d1.webp":[10,45,1422],"images/5d180f02aa3bf580a1fcaf1d290306aa.webp":[10,35,1112],"images/a45cad0fc29f41a3ad0add8ce3815cf7.webp":[10,35,1112],"images/585cfc50c6fd9def47ed7da14f8d4f5a.webp":[10,57,1876],"images/8e408c23640459320de0e23d591afb7b.webp":[10,62,2016],"images/2c8840915827c62fa03dbe21451c8251.webp":[10,48,1482],"images/b8c735925d9343a68147fcf2ed1a862a.webp":[10,78],"images/3c04207eb57044a69e50a45bbbe04ddd.webp":[10,36,1143],"images/2e47ba74dc64edcf1601c00b443be20a.webp":[10,50,1598],"images/04e023c8a94594a9abb137d07ff3e087.webp":[10,50,1604],"images/59aaa525638a4d4fb97644d4571f894f.webp":[10,23,660],"images/fb3c037ca64e44fdbfa73de074ce102f.webp":[10,87,2735],"images/7d09ac1c11bf138b60dbd72e37e99855.webp":[10,49,1518],"images/d7a4f14b5e1f43aebba465fd1ef6813c.webp":[10,49,1510],"images/7419dbc6bdcbb17405cdcd5fbe4e883d.webp":[10,52,1703],"images/8d6a10119072707242966d0f9c19416b.webp":[10,12,248],"images/37f11e04eb9547ac9c673d6e50231f4d.webp":[10,50,1647],"images/b1447d2276f89ab66081a56aa598b60a.webp":[10,42,1324],"images/45ba60d9f7453c26b6e7acfad7dfdb33.webp":[10,42,1315],"images/d0bdc722b32b4412b1f9712ff28749c5.webp":[10,32,1022],"images/90da797ab78851c55e9e79ab627cf083.webp":[10,62,2027],"images/77a16c89c1a3bd21fc8114f9851b5d27.webp":[10,61,1989],"images/f6115ba0a8768aa8f7a41e3bf61d5dbf.webp":[10,59,1944],"images/b533fb753b384f64bbcc19ff985452a8.webp":[10,71,2236],"images/0e2dabb1e9f403cc599f59c98219a602.webp":[10,74,2362],"images/5f6d334598d924703fba23517a1afae5.webp":[10,73,2319],"images/619365923d3a27cf560c9a524f4501c9.webp":[10,73,2304],"images/52a117dbbf92e25a644cb79a2bb0e491.webp":[10,53,1752],"images/ad3262aea46b95b0ad2aa17ebe735ef0.webp":[10,53,1752],"images/36134c9a499b080e20cb2978a68ca6ad.webp":[10,19,432],"images/fffeec530b774536a839bf144e657aed.webp":[10,8,144],"images/66b591e04edae8d7cb219b8db8cfc7f2.webp":[10,11,236],"images/32ea823ba047e276fc089a922135a1bf.webp":[10,12,255],"images/f54b14db9b05829616583616fe8bd6c4.webp":[10,14,300],"images/f1bab22db43ea3a4f80fff43bdbc4d1b.webp":[10,10,196],"images/6a9206c2cca70069f7e1ba66cf04696f.webp":[10,68,2170],"images/3cb642b7a46ccb52d7425e1c400e8b13.webp":[10,76,2487],"images/94d6878204578b7b5afd9e113af46611.webp":[10,81,2611],"images/4cb83bdf3cb168663d6c7888d8bb7938.webp":[10,79,2560],"images/cdb1a98ba3f1e713d8fddf8285cc99a4.webp":[10,68,2170],"images/bf45f3fc156a32ab48874084fdbf6c9b.webp":[10,76,2486],"images/d35f360c1ae041c4aa35cbadc1e2ef42.webp":[10,33,1067],"images/6d10e4246d3d4be09430dacea4af911e.webp":[10,33,1050],"images/04a5d584d7054a1f83ab51b924955830.webp":[10,34,1092],"images/4399088f27945313c0f7e240ee3da43a.webp":[10,35,1107],"images/45a97b29e85e4c5eac210976ddadd0bc.webp":[10,37,1164],"images/f8782340468c6ae1c2b848654f887a14.webp":[10,49,1540],"images/e8d8fd6129d14b589ee6b4e3d50ea60a.webp":[10,47,1471],"images/441a521061ba7d977d7859c5d81a8cf7.webp":[10,49,1535],"images/bb7791376d7af9b7084313f2d383e694.webp":[10,24,725],"images/3e39cf5a443611627c0a1ac9e0ad47e5.webp":[10,41,1296],"images/76eafdaa458b4db89d3982e162ea5312.webp":[10,42,1312],"images/3c285fc08f884db9964d27b8b14c2abb.webp":[10,8,134],"images/bbc4ec6692574e67808486e023db0aad.webp":[10,9,167],"images/74e6ca8b959a4735bf39dc9d89de58e6.webp":[10,11,237],"images/9ec1c401df9aa3ae264b11a94bbdc81a.webp":[10,22,573],"images/3479d5b6f2754404afd6770a7dc3c82d.webp":[10,77,2517],"images/08c1897ee02d3eff2d80db3e7c1f7de1.webp":[10,60,1959],"images/399a29c994bb44178e80d69b8d46a07b.webp":[10,60,1975],"images/9effb2022fefa3cc2fa4caa427cb70d6.webp":[10,61,1990],"images/328daad7c05f6e11aed6ea254cb2c32f.webp":[10,62,2019],"images/fa92d43b4c43d2767f4673cac239ef15.webp":[10,68,2155],"images/0b5e5f08b2914cce922ed3eafa39cea3.webp":[10,30,951],"images/56146a1a93eddffd52915933ec543d04.webp":[10,28,825],"images/15c983d8e22a46ac9787cab79f7fe8ab.webp":[10,28,844],"images/5fdcfa386ef0a0b636f057045eb4af5f.webp":[10,27,794],"images/65153eccab1647e586874f32c5d289a6.webp":[10,78,2542],"images/42b626455de84d36a376734c545d9926.webp":[10,81,2601],"images/967b458a7aaa9f0b6a610baeb08a74fc.webp":[10,53,1744],"images/d26d2741cf124b6e84df19aa5dffacf0.webp":[10,39,1370],"images/464c5e49b5574aa4aa2e8e49dcb1bbc1.webp":[10,41,1276],"images/776e7c13301a4e678a6f2bd27855dc2d.webp":[10,42,1314],"images/df106f7836014f0297a22a65720a405d.webp":[10,43,1357],"images/acd40320c5d344178083570b1aaae523.webp":[10,44,1380],"images/e6360977984f48a4a5dedb91ec6d00e0.webp":[10,77,2524],"images/9a57460ba1aa43b0b078e13677b445b8.webp":[10,77,2521],"images/de896d3bd73b6816342d010cf7e6a2d9.webp":[10,48,1485],"images/3f82bffc5b2279e098581517be95cefa.webp":[10,32,1013],"images/7a9c77487d134e8690395cd5aeea718e.webp":[10,37,1155],"images/87733a527f702013392da765a84717ea.webp":[10,37,1168],"images/a10bd517dc854a869ec3685ac6a57efb.webp":[10,41,1273],"images/c964e6ca708046728a95f5f7d9e45d64.webp":[10,18,397],"images/345f9282d53902a2b352b659ecb53edc.webp":[10,24,705],"images/4838830f9983a9b9706929e76efffe83.webp":[10,29,901],"images/ac3f353b6cd5c485473806446afaf833.webp":[10,31,966],"images/41d372e4ec6ce8caaf5ca23f9b595627.webp":[10,31,983],"images/a3d00097e21fd78d579861563183a912.webp":[10,31,988],"images/bedcfff325aeb7e99b39dc93f1facf91.webp":[10,37,1156],"images/f9129f313b2d2a7f54243024641c9273.webp":[10,37,1166],"images/4e6e1240956f535df32c0d4869359cc4.webp":[10,33,1061],"images/e1c8eae95fb83caf98024740ce16d251.webp":[10,41,1276],"images/9d234936dce24a8c85a5261b73937742.webp":[10,43,1359],"images/77e815ecdcc6438eae6f78a2ecf0b895.webp":[10,45,1424],"images/367ce778fbfd49ebb2dfe8f783f5d22a.webp":[10,46,1450],"images/b48412ddb881410185a5dc5734a8b5c7.webp":[10,48,1495],"images/8d363f27b2d552ead2baca54ddc4065f.webp":[10,49,1533],"images/f5504bd453be400b84acb0ff82bc7fca.webp":[10,55,1812],"images/85492f891ef9417aa0df99bcf1090d15.webp":[10,61,1989],"images/c1a1f105feb061e1ff506dacc4e9e0bf.webp":[10,62,2033],"images/026ddb40b1e44d0796e60420a2f3f6fe.webp":[10,86,2723],"images/d0fd9e0f544e439488f973a0b4332a7b.webp":[10,82,2623],"images/ae827a6ed375c35d3af000817c7c658d.webp":[10,80,2571],"images/30a6ac5f395d489dcdcd14da3e3e496d.webp":[10,79,2567],"images/7469582c3ebf44dbabed6ec7a09c46e9.webp":[10,12,271],"images/465ebeaa1b0146d49522ed65eddbcade.webp":[10,13,277],"images/88d0c0a8460fee18e12b2824db17ef49.webp":[10,16,360],"images/b9dde875aedcf61c8ecaeec6028adb8e.webp":[10,18,419],"images/aa9b13cfe1a2f9009b79b4fbe4adb62a.webp":[10,21,519],"images/292215b604f14c289b7f598372ce9d6d.webp":[10,22,576],"images/955466d9678b4230aafec530d1f60fc5.webp":[10,22,696],"images/e3f0f70181eefc8f4d6bca0a6dea66de.webp":[10,31,986],"images/9a9cc177fd65655232aae7b0405aea80.webp":[10,28,863],"images/4768561fd78dc652b95c7ed4e3d50116.webp":[10,41,1276],"images/c1c7d6e4641a46bf8762c8b18a528352.webp":[10,30,956],"images/af58ab1a641c476ea1a9b1625da61d4c.webp":[10,32,1028],"images/1112aff6ebd50b3480d5d27cf6c41585.webp":[10,32,1011],"images/f65399388ee444178c2709701b4ba17a.webp":[10,38,1196],"images/b3a8a00d16c1dd555b1fac9aac3a57c6.webp":[10,40,1243],"images/923adc03b0de455cbc765b9999cfd39d.webp":[10,44,1389],"images/ddcf61d74d3cbd9f80f27844ca326672.webp":[10,40,1229],"images/1186f57c823d568c9bcce10e84be3201.webp":[10,43,1340],"images/40d1cd9c0e0cb9ea561c3b7415f1042e.webp":[10,60,1955],"images/24c101a6036b58ded8827c8357ad408a.webp":[10,61,1993],"images/d98062746a8cd2530e9cce24f589fc7e.webp":[10,82,2646],"images/21857f8545da4e6597f2254c42bc75ef.webp":[10,82,2630],"images/e417b0a5fc5b4fee9f25a7ac732e1200.webp":[10,50,1597],"images/eb0866cd93d6dfb202decd8cb5470adf.webp":[10,47,1473],"images/cbad9d40f1ae33bbdc78996deecc62b1.webp":[10,47,1464],"images/8b3d4b88e83523d81e6411560052b0aa.webp":[10,54,1786],"images/709a0463896211a1dca21d39ce355d76.webp":[10,86,2716],"images/e32df3a4405c646dd7b5e699896a99c3.webp":[10,66,2120],"images/f3f222dbe4a04fe196ada3a68f58ea78.webp":[10,22,579],"images/3e67dfc3e9804c229ddb251beb660161.webp":[10,15,335],"images/09fbe83b698f478cac2a31d1cfc13a6c.webp":[10,23,646],"images/c4f08335af36a2de69c14c1d6099ee49.webp":[10,24,693],"images/6d6d7fdfd4f70057a0671133883b0e1f.webp":[10,28,815],"images/2c58782daeef426e88ffbdde23d32e77.webp":[10,80,2584],"images/7aee8016b3b3413088f306d6a16cf8cf.webp":[10,53,2027],"images/1b0268fe4a15a4fcd6c4b9b789d1853c.webp":[10,36,1138],"images/9d5f4f19b28f64ae62eb6b37dd8741a8.webp":[10,81,2603],"images/1e5acfe32b4976cb2d0c2a3d7fffd0e7.webp":[10,34,1087],"images/8586b50c48fa0b12916fcc120f50460b.webp":[10,41,1276],"images/30aa71c57e7315d06e4ff409c953094c.webp":[10,40,1239],"images/e6f198199b9d04c56895803b3914beca.webp":[10,57,1872],"images/b48227d5002ad7b83f544a9357654306.webp":[10,45,1405],"images/e9bc991815b2956566e574ab22862208.webp":[10,43,1357],"images/66358ce8fc76a86acb13aef9502648ba.webp":[10,43,1363],"images/36c06b1a31a147a297412d067cb65093.webp":[9,null,1540],"images/cc665734bd7022c171e5181b99cc9a3e.webp":[10,84,2691],"images/7b5d2c22d70ee85bea3fc08eac817a88.webp":[10,50,1585],"images/ee1916cdadd8fcdd223951ffa3e8ed76.webp":[10,9,161],"images/9fa8186a121150cba3e46291c4791f58.webp":[10,63,2054],"images/a7a94deb4fb500b40f3bfbf2f9424b07.webp":[10,64,2072],"images/566bbd1339f5eba37a114771a4249979.webp":[10,87,2734],"images/c707784ef125491cf1497524c5a8dbdd.webp":[10,10,199],"images/08a7d0cde703ca42584910e988f244ab.webp":[10,76,2490],"images/b729214a2bb1462da06c2a3cfded3548.webp":[10,73,2305],"images/1f159ebf25dd1b96958211b022a044c9.webp":[10,76,2504],"images/65538257bebf4d0bbaaba2691bf65fdb.webp":[10,82,2623],"images/1998019a5fa609fbf3ad8202d6e030aa.webp":[10,23,631],"images/4674a4739ca0ce1ee4c3e8d43c296bf8.webp":[10,30,956]};
+
+  function millerCite(path){
+    var v = IMG_SOURCES[path];
+    if(!v) return "";
+    return "Miller's Anesthesia, " + (v[0] === 9 ? "9th" : "10th") + " ed."
+      + (v[1] ? ", Ch." + v[1] : "") + (v[2] ? ", p." + v[2] : "");
+  }
+
+  /* renderBlocks() 被章節筆記、callout 遞迴、2026麻專18篇三處共用。用模組變數而不是
+     加參數，是因為遞迴呼叫會自動沿用，不必逐層傳遞；代價是渲染完沒清掉就會外洩到
+     下一個呼叫者身上，所以 tests/test_imgcite.js 專門守這件事。
+
+     目前它永遠是空字串：章節筆記的圖**不做整章推導**。原因是實際開圖查證過——
+     ch45 的標題是「Ch41 Spinal, Epidural, and Caudal Anesthesia」（第十版章號），
+     但圖上印的是「TABLE 45.1」，也就是第九版第 45 章，跟 chapters.id 一致。
+     筆記內容已經對照到第十版，圖卻還是當年從第九版拍的，兩者版本不同步。
+     而且同一章裡還有明顯不是 Miller 的圖（一張 Circle of Willis 示意圖）。
+     用標題推導會把 351 張全部標成第十版，那是錯誤的歸屬——比不標更糟。
+     正確做法是依每張圖上實際印的編號逐張認定，那份清單還沒建立。 */
+  var BLOCK_IMG_CITE = "";
   var ADMIN_SESSION_KEY = "mazhuan_admin_ok";
 
   /* 人事號限定 6 碼英數。加這道限制是因為身分是自己輸入的，沒有格式約束的話資料
@@ -1059,9 +1150,13 @@ table.admin-table tr:last-child td{border-bottom:none;}
       if(b.type === "quote") return '<div class="block-quote"><span class="tag">TIP</span>' + inline(b.text) + '</div>';
       if(b.type === "link") return '<div class="block-link"><a href="' + esc(b.url) + '" target="_blank" rel="noopener">' + inline(b.text) + '</a></div>';
       if(b.type === "divider") return '<hr class="content-divider">';
-      if(b.type === "img") return '<figure class="block-img"><img src="' + esc(b.path) + '" alt="筆記附圖" loading="lazy">' +
-        (b.caption ? '<figcaption>' + b.caption.split("\n").map(function(l){ return inline(l); }).join('<br>') + '</figcaption>' : '') +
-        '</figure>';
+      if(b.type === "img"){
+        var cite = millerCite(b.path) || BLOCK_IMG_CITE;
+        return '<figure class="block-img"><img src="' + esc(b.path) + '" alt="筆記附圖" loading="lazy">' +
+          (b.caption ? '<figcaption>' + b.caption.split("\n").map(function(l){ return inline(l); }).join('<br>') + '</figcaption>' : '') +
+          (cite ? '<div class="img-cite">' + esc(cite) + '</div>' : '') +
+          '</figure>';
+      }
       /* 夾到 6：筆記最深有 10 層，但第 7 層以上合計只有 50 個項目，再往下給縮排
          在手機上會擠掉正文寬度。CSS 對應定義到 indent-6。 */
       if(b.type === "li") return '<div class="block-li indent-' + Math.min(b.indent,6) + '"><span class="bullet">&#9656;</span><span class="txt">' + inline(b.text) + '</span></div>';
@@ -1287,6 +1382,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
           '<div class="chapter-list" id="chapter-list"></div>' +
         '</div>' +
         '<div class="content-pane"><div class="content-inner" id="content-inner"></div></div>' +
+        '<nav class="toc-rail" id="chapter-toc" hidden></nav>' +
       '</div>' +
       '<div class="view" id="view-exam"><div class="exam-wrap" id="exam-wrap"></div></div>' +
       '<div class="view" id="view-oral"><div class="exam-wrap" id="oral-wrap"></div></div>' +
@@ -1531,15 +1627,109 @@ table.admin-table tr:last-child td{border-bottom:none;}
     var c = findChapter(currentChapterId);
     if(!c){ pane.innerHTML = '<div class="empty-state">選擇左側章節開始閱讀</div>'; return; }
     var qc = questionCountFor(c.id);
+    var body = renderBlocks(c.blocks);
     pane.innerHTML =
       '<h1 class="chapter-title">' + esc(c.title) + '</h1>' +
       (qc ? '<div class="chapter-meta"><a href="#ch-mock-quiz">' + qc + ' 題章節測驗 &#8595;</a></div>' : '') +
       '<hr class="divider">' +
-      renderBlocks(c.blocks) +
+      body +
       renderChapterMockExam(c);
     pane.scrollTop = 0;
     document.querySelector('.content-pane').scrollTop = 0;
     wireChapterMockExam();
+    buildChapterToc();
+  }
+
+  /* ---------- 章節內導覽（目錄） ----------
+     60 篇重排後每篇有 h3 大節 / h4 小節，長的一篇近 200 個區塊，
+     沒有導覽只能一路往下捲。
+
+     刻意不改 renderBlocks()：那支被 papers2026、callout 遞迴等多處共用，
+     在裡面塞 id 要嘛得加參數、要嘛得用跨呼叫的計數器（callout 遞迴會撞號）。
+     改成渲染完之後走訪 DOM 補 id，對其他分頁零影響。 */
+  var tocObserver = null;
+
+  function buildChapterToc(){
+    var rail = document.getElementById('chapter-toc');
+    var pane = document.getElementById('content-inner');
+    if(!rail || !pane) return;
+
+    if(tocObserver){ tocObserver.disconnect(); tocObserver = null; }
+
+    /* 只收章節本文的標題：模擬筆試卡片那一段不進目錄 */
+    var mock = pane.querySelector('.mock-quiz-wrap, #ch-mock-quiz');
+    var heads = [].slice.call(pane.querySelectorAll('.block-h2,.block-h3,.block-h4'))
+      .filter(function(el){ return !(mock && mock.contains(el)); });
+
+    /* 少於 3 個標題的短篇不值得占版面 */
+    var majors = heads.filter(function(el){ return !el.classList.contains('block-h4'); });
+    if(majors.length < 3){ rail.hidden = true; rail.innerHTML = ''; return; }
+
+    heads.forEach(function(el, i){ el.id = 'sec-' + i; });
+
+    var term = searchTerm ? searchTerm.toLowerCase() : '';
+    /* 命中搜尋字的小節要標出來：搜尋只告訴你「哪一篇有」，進來還是得自己找 */
+    function sectionHasHit(idx){
+      if(!term) return false;
+      var el = heads[idx], stop = heads[idx+1] || null, node = el;
+      while((node = node.nextElementSibling) && node !== stop){
+        if((node.textContent || '').toLowerCase().indexOf(term) !== -1) return true;
+      }
+      return (el.textContent || '').toLowerCase().indexOf(term) !== -1;
+    }
+
+    rail.innerHTML = '<div class="toc-head">' +
+        '<span>本章目錄</span>' +
+        '<button type="button" class="toc-toggle" id="toc-toggle" aria-expanded="false">展開</button>' +
+      '</div>' +
+      '<ol class="toc-list">' + heads.map(function(el, i){
+        var lvl = el.classList.contains('block-h4') ? 'sub' : (el.classList.contains('block-h2') ? 'top' : 'main');
+        return '<li class="toc-item ' + lvl + (sectionHasHit(i) ? ' hit' : '') + '">' +
+          '<a href="#sec-' + i + '" data-target="sec-' + i + '">' + esc(el.textContent || '') + '</a>' +
+        '</li>';
+      }).join('') + '</ol>';
+    rail.hidden = false;
+    rail.classList.remove('open');
+
+    var scroller = document.querySelector('.content-pane');
+    var links = {};
+    rail.querySelectorAll('a[data-target]').forEach(function(a){
+      links[a.getAttribute('data-target')] = a;
+      a.addEventListener('click', function(e){
+        e.preventDefault();
+        var t = document.getElementById(a.getAttribute('data-target'));
+        if(t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        rail.classList.remove('open');   /* 窄螢幕：點完就收起來 */
+      });
+    });
+
+    var toggle = document.getElementById('toc-toggle');
+    if(toggle) toggle.addEventListener('click', function(){
+      var open = rail.classList.toggle('open');
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      toggle.textContent = open ? '收合' : '展開';
+    });
+
+    /* 捲動時高亮目前所在的節。rootMargin 上緣往下推，讓「剛捲過標題」
+       就算進入該節，而不是等它捲到畫面正中央。 */
+    if(window.IntersectionObserver && scroller){
+      var visible = {};
+      tocObserver = new IntersectionObserver(function(entries){
+        entries.forEach(function(en){ visible[en.target.id] = en.isIntersecting; });
+        var activeId = null;
+        for(var i = heads.length - 1; i >= 0; i--){
+          if(visible[heads[i].id]){ activeId = heads[i].id; break; }
+        }
+        if(!activeId) return;
+        rail.querySelectorAll('a.active').forEach(function(a){ a.classList.remove('active'); });
+        if(links[activeId]){
+          links[activeId].classList.add('active');
+          /* 目錄本身太長時，讓目前這一條保持可見 */
+          if(links[activeId].scrollIntoView) links[activeId].scrollIntoView({ block: 'nearest' });
+        }
+      }, { root: scroller, rootMargin: '-8px 0px -75% 0px', threshold: 0 });
+      heads.forEach(function(el){ tocObserver.observe(el); });
+    }
   }
 
   /* ---------- 共用：附在筆記底下的模擬筆試卡片 ----------
@@ -2278,9 +2468,11 @@ table.admin-table tr:last-child td{border-bottom:none;}
     return '<div class="exam-explain-images">' + imgs.map(function(item){
       var path = typeof item === 'string' ? item : item.path;
       var caption = typeof item === 'string' ? '' : (item.caption || '');
+      var cite = millerCite(path);
       return '<figure class="exam-explain-figure">' +
         '<img src="' + esc(path) + '" alt="詳解附圖" loading="lazy">' +
         (caption ? '<figcaption class="mono">' + esc(caption) + '</figcaption>' : '') +
+        (cite ? '<div class="img-cite">' + esc(cite) + '</div>' : '') +
         '</figure>';
     }).join('') + '</div>';
   }
