@@ -374,6 +374,26 @@ hr.content-divider{border:none;border-top:2px dashed var(--line);margin:40px 0;}
 .block-img figcaption{margin-top:8px;font-size:11.5px;line-height:1.6;color:var(--ink-dim);text-align:left;}
 /* 圖片出處（著作權法 §64）。刻意做得小而安靜——它是必須存在的標注，不是內容，
    不該跟圖說搶注意力，但也不能小到看不見。 */
+/* ---------- 進行中的工作 ---------- */
+/* 分頁名稱旁的小圓點：唯一「一眼就看得到」的施工訊號。刻意不做成全站橫幅——
+   那種東西掛兩週就變成背景，而且會出現在跟施工無關的分頁上。 */
+.tab-dot{display:inline-block;width:6px;height:6px;margin-left:5px;vertical-align:middle;
+  border-radius:50%;background:var(--sec-eval);}
+/* 就地說明：要看得見但不能蓋過內容，所以用邊框而不是填滿背景。 */
+.wip-note{display:flex;gap:9px;align-items:flex-start;margin:14px 0;padding:10px 13px;
+  border:1px solid var(--line);border-left:3px solid var(--sec-eval);
+  border-radius:var(--radius-ctl);background:var(--panel-2);
+  font-size:13px;line-height:1.75;color:var(--ink-dim);}
+.wip-note .wip-dot{flex:none;width:7px;height:7px;margin-top:7px;border-radius:50%;
+  background:var(--sec-eval);}
+.about-wip{margin:0 0 26px;}
+.wip-lede{margin:0 0 14px;font-size:14px;line-height:1.85;color:var(--ink-dim);}
+.wip-group{margin:0 0 14px;}
+.wip-group h3{margin:0 0 6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-faint);font-weight:600;}
+.wip-group ul{margin:0;padding-left:20px;}
+.wip-group li{margin:4px 0;font-size:14px;line-height:1.8;}
+
 .img-cite{margin-top:6px;font-family:var(--mono);font-size:10.5px;line-height:1.5;
   color:var(--ink-dim);opacity:.75;text-align:left;letter-spacing:.01em;}
 
@@ -875,6 +895,55 @@ table.admin-table tr:last-child td{border-bottom:none;}
      restructure/chapter_image_numbers.tsv（131 張）與各章 out/<id>.json 的 notes。 */
   var ADMIN_SESSION_KEY = "mazhuan_admin_ok";
 
+  /* ---------- 進行中的工作 ----------
+     站上有些區塊正在修訂，讀者在看的當下應該知道。這個陣列是唯一來源，四個地方
+     共用：分頁上的小圓點、各區塊的就地說明、關於頁的清單。改這裡，四處同步；
+     某一項做完就把它刪掉，圓點會自動消失。
+
+     刻意不寫進度數字（「343 題已審 238 題」那種）——它一週內就過期，而且不會有人
+     回來改。寫「正在進行」就夠了，讀者需要知道的是「該怎麼看待眼前的內容」，
+     不是我們做到第幾項。 */
+  var IN_PROGRESS = [
+    { tab: 'read', name: '章節筆記',
+      inline: '這批筆記正在逐篇校訂：已發現一些用詞與數值的疑慮正在確認，排版也會改版。' +
+              '內容以教科書原文為準，看到可疑的地方歡迎跟站長說。',
+      detail: '逐篇校訂內容、重新排版，並加上章節內目錄' },
+    { tab: 'papers2026', name: '2026麻專18篇',
+      inline: '這個分頁正在大幅修訂：模擬試題還在逐題審訂，筆記本文也在補強。',
+      detail: '模擬試題逐題審訂、筆記本文補強' },
+    { tab: null, name: '版本落差筆記',
+      inline: '另外，這些條目正在由站長逐則複核中，尚未全部確認完畢。',
+      detail: '逐則複核' },
+    { tab: null, name: '圖片出處標注', inline: null,
+      detail: '陸續補上每張圖的教科書章節與頁碼' }
+  ];
+
+  /* 已規劃、還沒開始的。沒有就地註記，只出現在關於頁。 */
+  var PLANNED = [
+    '向教科書出版社洽詢授權',
+    '三篇佔位章節的內文（目前只有標題）'
+  ];
+
+  function inProgressFor(key){
+    for(var i = 0; i < IN_PROGRESS.length; i++){
+      if(IN_PROGRESS[i].name === key || IN_PROGRESS[i].tab === key) return IN_PROGRESS[i];
+    }
+    return null;
+  }
+
+  /* 就地說明。查無此項就回空字串——那一項做完被刪掉之後，呼叫端不必跟著改。 */
+  function inProgressNote(key){
+    var it = inProgressFor(key);
+    return (it && it.inline)
+      ? '<div class="wip-note"><span class="wip-dot"></span>' + esc(it.inline) + '</div>'
+      : '';
+  }
+
+  function tabHasWork(tab){
+    var it = inProgressFor(tab);
+    return !!(it && it.tab === tab);
+  }
+
   /* 人事號限定 6 碼英數。加這道限制是因為身分是自己輸入的，沒有格式約束的話資料
      裡會混進暱稱，之後要拿作答統計對外講就得先花力氣清。一律轉大寫，免得同一個人
      打 a90803 和 A90803 被當成兩個人。
@@ -1370,10 +1439,14 @@ table.admin-table tr:last-child td{border-bottom:none;}
       '<div class="topbar">' +
         '<div class="brand"><span class="pulse">&#9673;</span> 麻專站 <span class="sub">Anesthesia Board Console</span></div>' +
         '<div class="tabs">' +
-          '<button class="tab-btn" data-tab="read">讀筆記</button>' +
+          '<button class="tab-btn" data-tab="read">讀筆記' +
+            (tabHasWork('read') ? '<span class="tab-dot" title="此處內容正在修訂中"></span>' : '') +
+          '</button>' +
           '<button class="tab-btn" data-tab="exam">考古題</button>' +
           '<button class="tab-btn" data-tab="oral">口試</button>' +
-          '<button class="tab-btn" data-tab="papers2026">2026麻專18篇</button>' +
+          '<button class="tab-btn" data-tab="papers2026">2026麻專18篇' +
+            (tabHasWork('papers2026') ? '<span class="tab-dot" title="此處內容正在修訂中"></span>' : '') +
+          '</button>' +
           '<button class="tab-btn" data-tab="mine">我的紀錄</button>' +
           '<button class="tab-btn" data-tab="add">新增內容</button>' +
           '<button class="tab-btn" data-tab="about">關於</button>' +
@@ -1579,6 +1652,20 @@ table.admin-table tr:last-child td{border-bottom:none;}
             '請與站長聯繫，我們會立即配合移除。</p>' +
         '</div>' +
 
+        '<h2>進行中的工作</h2>' +
+        '<div class="about-wip">' +
+          '<p class="wip-lede">站上有幾個地方正在修訂。標示在這裡是為了讓你知道' +
+            '哪些內容還會變動——分頁名稱旁邊有小圓點的就是。</p>' +
+          '<div class="wip-group"><h3>正在進行</h3><ul>' +
+            IN_PROGRESS.map(function(it){
+              return '<li><b>' + esc(it.name) + '</b>：' + esc(it.detail) + '</li>';
+            }).join('') +
+          '</ul></div>' +
+          (PLANNED.length ? '<div class="wip-group"><h3>已規劃，還沒開始</h3><ul>' +
+            PLANNED.map(function(t){ return '<li>' + esc(t) + '</li>'; }).join('') +
+          '</ul></div>' : '') +
+        '</div>' +
+
         '<h2>做了什麼更新</h2>' +
         '<div class="changelog">' + CHANGELOG.map(function(e){
           return '<div class="cl-entry' + (e.big ? ' big' : '') + '">' +
@@ -1641,6 +1728,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     pane.innerHTML =
       '<h1 class="chapter-title">' + esc(c.title) + '</h1>' +
       (qc ? '<div class="chapter-meta"><a href="#ch-mock-quiz">' + qc + ' 題章節測驗 &#8595;</a></div>' : '') +
+      inProgressNote('read') +
       '<hr class="divider">' +
       body +
       renderChapterMockExam(c);
@@ -1894,6 +1982,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
       '<h1 class="chapter-title">' + esc(p.title) + '</h1>' +
       (p.source_citation ? '<div class="chapter-meta">' + esc(p.source_citation) + '</div>' : '') +
       (p.credit ? '<div class="chapter-credit">筆記內容由 ' + esc(p.credit) + ' 提供</div>' : '') +
+      inProgressNote('papers2026') +
       '<hr class="divider">' +
       navHtml +
       blocksHtml +
@@ -2680,6 +2769,9 @@ table.admin-table tr:last-child td{border-bottom:none;}
           '<p class="vgn-lede">' + esc(VGN_META.lede) + '</p>' +
           '<div class="vgn-meta mono">涵蓋 ' + esc(VGN_META.coverage) + '　·　整理日期 ' + esc(VGN_META.compiled) +
             '　·　共 ' + all.length + ' 則</div>' +
+          /* 註記放在收合區塊「外面」：disclaimer 在 <details> 裡預設是收起來的，
+             埋進去等於沒寫。讀者需要在看內容之前就知道這些條目還沒複核完。 */
+          inProgressNote('版本落差筆記') +
           '<details class="vgn-scope"><summary>關於這份整理的範圍與限制</summary>' +
             VGN_META.disclaimer.map(function(p){ return '<p>' + esc(p) + '</p>'; }).join('') +
           '</details>' +
