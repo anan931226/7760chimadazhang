@@ -2858,12 +2858,17 @@ table.admin-table tr:last-child td{border-bottom:none;}
     /* coming back from a question: put the reader back on the finding they left
        from, not at the top of a page that lists every entry (the entry count
        moves as findings get added or retracted, so don't quote it here) */
+    var vgnPane = document.getElementById('view-exam');
     if(scrollToId){
       var target = document.getElementById('vgn-entry-' + scrollToId);
       if(target){
         target.scrollIntoView({ block: 'center' });
         target.classList.add('vgn-returned');
       }
+    } else if(vgnPane){
+      /* 不是從某一題返回，就是重新進來看，從頭開始。不重設的話會沿用上一個
+         畫面的捲動位置，開頭那幾則直接被跳過。 */
+      vgnPane.scrollTop = 0;
     }
   }
 
@@ -2994,6 +2999,17 @@ table.admin-table tr:last-child td{border-bottom:none;}
       examBrowse.answered = true;
       examShowResult(q, examBrowse.picked[q.id]);
     }
+
+    /* 換了一題就從頭看起。#view-exam 才是捲動容器（overflow-y:auto），不是 window。
+
+       少了這行最明顯的症狀是：從版本落差筆記點「去看 ○○ 年第 ○○ 題」會看到
+       一片空白。那一頁有 75 則、很長，使用者捲到下面才點得到按鈕，內容換成一張
+       短短的題目卡之後捲動位置還停在原地，整張卡片都在視窗上方。
+       上一題／下一題在長題接短題時也有同樣的問題，只是比較不明顯。
+
+       examShowResult() 不走這裡（它只換 reveal slot），所以作答不會把人彈回頂端。 */
+    var pane = document.getElementById('view-exam');
+    if(pane) pane.scrollTop = 0;
   }
 
   function examAnswerPick(picked){
