@@ -212,6 +212,14 @@ input,textarea,select{font-family:inherit;}
 .chapter-credit{font-size:12px;color:var(--ink-faint);margin:-10px 0 18px;}
 .content-inner hr.divider{border:none;border-top:1px solid var(--line);margin:0 0 28px;}
 
+/* 版次提醒：要讀得到，但不能蓋過正文。用細邊框而不是整塊底色。 */
+.edition-note{
+  font-size:12px;line-height:1.6;color:var(--ink-dim);
+  border:1px solid var(--line);border-left:3px solid var(--resp);
+  border-radius:0 8px 8px 0;padding:7px 11px;margin:0 0 18px;
+}
+.edition-note b{color:var(--ink);font-weight:600;}
+
 /* ---------- 章節內導覽（目錄） ----------
    寬螢幕：右側固定欄，捲動時高亮目前所在的節。
    窄螢幕：改成右下角浮動按鈕 + 展開面板——不跟 #view-read 的 flex 排版打架。 */
@@ -893,6 +901,18 @@ table.admin-table tr:last-child td{border-bottom:none;}
      錯誤歸屬比沒有標注嚴重：前者是對第三方作者的錯誤宣稱，後者只是自己沒盡到
      §64 的義務。正確做法是依每張圖實際印的編號逐張認定，清單見
      restructure/chapter_image_numbers.tsv（131 張）與各章 out/<id>.json 的 notes。 */
+
+  /* 上面那件事讀者也該知道，所以每篇章節筆記都掛這一行。
+
+     寫的是「圖表的編號」而不是「內容」——兩者版次不同：內文已對照到第十版，圖還是
+     第九版的。混講會讓人以為整篇筆記是舊版的。
+
+     範圍刻意只限章節筆記（讀筆記分頁），不做成全站通告：考古題詳解圖是第十版裁圖
+     且有逐張紀錄（見 IMG_SOURCES），一併講成第九版會把那 184 筆講錯。 */
+  var EDITION_NOTE = '<div class="edition-note">' +
+    '本篇<b>圖表編號依第九版</b>，內文已對照第十版；部分附圖非取自 Miller。' +
+    '</div>';
+
   var ADMIN_SESSION_KEY = "mazhuan_admin_ok";
 
   /* ---------- 進行中的工作 ----------
@@ -1728,6 +1748,7 @@ table.admin-table tr:last-child td{border-bottom:none;}
     pane.innerHTML =
       '<h1 class="chapter-title">' + esc(c.title) + '</h1>' +
       (qc ? '<div class="chapter-meta"><a href="#ch-mock-quiz">' + qc + ' 題章節測驗 &#8595;</a></div>' : '') +
+      EDITION_NOTE +
       inProgressNote('read') +
       '<hr class="divider">' +
       body +
@@ -1759,9 +1780,11 @@ table.admin-table tr:last-child td{border-bottom:none;}
     var heads = [].slice.call(pane.querySelectorAll('.block-h2,.block-h3,.block-h4'))
       .filter(function(el){ return !(mock && mock.contains(el)); });
 
-    /* 少於 3 個標題的短篇不值得占版面 */
-    var majors = heads.filter(function(el){ return !el.classList.contains('block-h4'); });
-    if(majors.length < 3){ rail.hidden = true; rail.innerHTML = ''; return; }
+    /* 門檻看標題總數，不看大節數。一開始是數大節（h2/h3）要有 3 個，結果 ch50
+       被擋掉——它原文只有 Antiplatelet／Anticoagulants 兩個大類，但底下掛了 8 個
+       藥物小節，正是最需要目錄的那種。短篇不值得占版面的判準是「目錄短到沒用」，
+       不是「大節少」。 */
+    if(heads.length < 4){ rail.hidden = true; rail.innerHTML = ''; return; }
 
     heads.forEach(function(el, i){ el.id = 'sec-' + i; });
 
