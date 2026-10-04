@@ -1869,7 +1869,8 @@ table.admin-table tr:last-child td{border-bottom:none;}
               String.fromCharCode(65+oi) + '</span><span>' + inline(opt) + '</span></button>';
           }).join('') +
         '</div>' +
-        '<div class="quiz-explain" hidden><span class="tag">解析</span>' + inline(q.explanation) + '</div>' +
+        '<div class="quiz-explain" hidden><span class="tag">解析</span>' + inline(q.explanation) +
+          examExplainImages(q) + '</div>' +
       '</div>';
     }).join('');
   }
@@ -2544,6 +2545,11 @@ table.admin-table tr:last-child td{border-bottom:none;}
          收藏清單），顯示不碰答案，所以無損。 */
       answerIndex: firstCorrect ? keys.indexOf(firstCorrect) : -1,
       explanation: q.explanation,
+      /* 詳解附圖也要帶著走。少了這一行，145 題／189 張圖在錯題本與收藏裡會
+         只剩詳解文字——而那些詳解常常是在講圖（例如 2021 第 32 題整段在解釋
+         Fig.19.8），沒有圖等於看不懂。原本的註解說這個形狀「只用於顯示，
+         顯示不碰答案，所以無損」，漏算的就是圖。 */
+      explanationImages: q.explanation_images,
       isExam: true,
       examTag: q.year + ' 年考古題 第 ' + q.question_no + ' 題'
     };
@@ -2584,8 +2590,10 @@ table.admin-table tr:last-child td{border-bottom:none;}
     return item.year + ' 年 第 ' + item.question_no + ' 題';
   }
 
+  /* 兩種鍵都吃：考古題原始列是 snake_case 的 explanation_images，
+     examToQuizShape() 轉出來的顯示形狀是 camelCase 的 explanationImages。 */
   function examExplainImages(q){
-    var imgs = q.explanation_images;
+    var imgs = q.explanation_images || q.explanationImages;
     if(!imgs || !imgs.length) return '';
     return '<div class="exam-explain-images">' + imgs.map(function(item){
       var path = typeof item === 'string' ? item : item.path;
